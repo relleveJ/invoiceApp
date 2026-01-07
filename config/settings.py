@@ -8,9 +8,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-key-in-production')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# Default to False for safety in production; set DEBUG=True locally via env
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.railway.app']
+# Allow Railway-hosted domains and local development hosts
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*.railway.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -69,15 +71,18 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Database
-database_url = os.getenv('DATABASE_URL')
-if database_url:
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    # Use dj_database_url to parse the provided DATABASE_URL (Postgres on Railway)
     DATABASES = {
-        'default': dj_database_url.config(
-            default=database_url,
-            conn_max_age=600
-        )
+        'default': dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
     }
+    # Require SSL when running in production
+    if not DEBUG:
+        DATABASES['default'].setdefault('OPTIONS', {})
+        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 else:
+    # Fallback to SQLite for local development
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
