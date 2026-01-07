@@ -1,34 +1,61 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
-  <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body">
-          <h3 class="card-title mb-3">Register</h3>
-          {% if messages %}
-            {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-          <form method="post">
-            {% csrf_token %}
-            {{ form.non_field_errors }}
-            {% for field in form %}
-              <div class="mb-3">
-                {{ field.label_tag }}
-                {{ field }}
-                {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
-                {{ field.errors }}
-              </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary">Register</button>
-            <a href="{% url 'login' %}" class="btn btn-link">Login</a>
-          </form>
-        </div>
+<style>
+  /* Dark, modern form styles scoped to this page */
+  body { background: #070708; }
+  .auth-wrap { min-height: calc(100vh - 80px); display:flex; align-items:center; justify-content:center; padding:2rem 1rem; }
+  .auth-card {
+    width:100%; max-width:520px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.06); border-radius:14px; padding:1.5rem; box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+    color: #e6eef8;
+  }
+  .auth-card h3 { color:#fff; font-weight:600; margin-bottom:0.5rem; }
+  .form-control { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6eef8; }
+  .form-control::placeholder { color: rgba(230,238,248,0.45); }
+  .form-control:focus { background: rgba(255,255,255,0.02); border-color: rgba(96,165,250,0.9); box-shadow:none; }
+  .btn-primary { background: linear-gradient(90deg,#0ea5a4,#7c3aed); border: none; }
+  .muted { color: rgba(230,238,248,0.55); font-size:0.95rem; }
+  .links { margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; }
+  @media (max-width:420px){ .auth-card{ padding:1rem; border-radius:10px; } h3{font-size:1.1rem;} }
+</style>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h3>Register</h3>
+    <p class="muted">Create an account to manage invoices securely.</p>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="row gx-2">
+        {% for field in form %}
+          <div class="col-12 mb-3">
+            {% if field.label %}
+              <label class="form-label text-muted">{{ field.label }}</label>
+            {% endif %}
+            {{ field|add_class:'form-control' }}
+            {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+            {{ field.errors }}
+          </div>
+        {% endfor %}
       </div>
-    </div>
+
+      <div class="d-grid gap-2 mt-2">
+        <button type="submit" class="btn btn-primary btn-lg">Create account</button>
+      </div>
+
+      <div class="links muted">
+        <span>Already have an account?</span>
+        <a href="{% url 'login' %}" class="text-decoration-none">Log in</a>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

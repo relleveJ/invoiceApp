@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: invoice_user
+      POSTGRES_PASSWORD: invoiceMaker159
+      POSTGRES_DB: invoice_app_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app:cached
+      - static_volume:/vol/static
+    ports:
+      - '8000:8000'
+    environment:
+      SECRET_KEY: dev
+      DEBUG: '1'
+      DATABASE_URL: postgresql://invoice_user:invoiceMaker159@db:5432/invoice_app_db
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  static_volume:
