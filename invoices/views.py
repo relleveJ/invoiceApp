@@ -1555,194 +1555,194 @@ def invoice_create(request):
 	businesses = get_businesses_for_user(request.user)
 	if request.method == 'POST':
 		try:
-		# If the user typed a new client name instead of selecting an existing client,
-		# create that Client first so the InvoiceForm (which requires `client` FK)
-		# can validate correctly.
-		post_data = request.POST.copy()
-		client_field = post_data.get('client') or ''
-		# Accept typed client name from the editable `client_name` field when the
-		# client select isn't used. This allows saving without choosing an existing
-		# Client from the dropdown.
-		new_client_name = post_data.get('id_client_create') or post_data.get('client_name') or ''
-		if (not client_field) and new_client_name:
-			# create lightweight client record
-			client = Client.objects.create(
-				user=request.user,
-				name=new_client_name,
-				email=post_data.get('client_email') or post_data.get('id_client_email') or '',
-				phone=post_data.get('client_phone') or post_data.get('id_client_phone') or '',
-				address=post_data.get('client_address') or post_data.get('id_client_address') or ''
-			)
-			post_data['client'] = str(client.pk)
+			# If the user typed a new client name instead of selecting an existing client,
+			# create that Client first so the InvoiceForm (which requires `client` FK)
+			# can validate correctly.
+			post_data = request.POST.copy()
+			client_field = post_data.get('client') or ''
+			# Accept typed client name from the editable `client_name` field when the
+			# client select isn't used. This allows saving without choosing an existing
+			# Client from the dropdown.
+			new_client_name = post_data.get('id_client_create') or post_data.get('client_name') or ''
+			if (not client_field) and new_client_name:
+				# create lightweight client record
+				client = Client.objects.create(
+					user=request.user,
+					name=new_client_name,
+					email=post_data.get('client_email') or post_data.get('id_client_email') or '',
+					phone=post_data.get('client_phone') or post_data.get('id_client_phone') or '',
+					address=post_data.get('client_address') or post_data.get('id_client_address') or ''
+				)
+				post_data['client'] = str(client.pk)
 
-		# include uploaded files so file inputs (business photo etc.) are processed
-		form = InvoiceForm(post_data, request.FILES, user=request.user)
-		# create a bound formset (include files) so uploaded file fields in formset are handled
-		formset = InvoiceItemFormSet(request.POST, request.FILES)
+			# include uploaded files so file inputs (business photo etc.) are processed
+			form = InvoiceForm(post_data, request.FILES, user=request.user)
+			# create a bound formset (include files) so uploaded file fields in formset are handled
+			formset = InvoiceItemFormSet(request.POST, request.FILES)
 
-		if form.is_valid():
-			invoice = form.save(commit=False)
-			invoice.user = request.user
-			# Persist selected template choice if provided
-			tpl = post_data.get('template') or post_data.get('id_template') or post_data.get('template_choice')
-			if tpl:
+			if form.is_valid():
+				invoice = form.save(commit=False)
+				invoice.user = request.user
+				# Persist selected template choice if provided
+				tpl = post_data.get('template') or post_data.get('id_template') or post_data.get('template_choice')
+				if tpl:
+					try:
+						invoice.template_choice = str(tpl)
+					except Exception:
+						pass
+
+				# Read any business fields submitted so we can populate the invoice snapshot
+				biz_id = post_data.get('business_id') or post_data.get('business') or ''
+				biz_name = post_data.get('business_name') or post_data.get('id_business_name_text') or ''
+				biz_email = post_data.get('business_email') or post_data.get('id_business_email_text') or ''
+				biz_phone = post_data.get('business_phone') or post_data.get('id_business_phone_text') or ''
+				biz_addr = post_data.get('business_address') or post_data.get('id_business_address_text') or ''
+
+				# populate business snapshot fields on the invoice so the PDF/preview
+				# remains the same even if the user's BusinessProfile changes later
+				if biz_name:
+					invoice.business_name = biz_name
+				if biz_email:
+					invoice.business_email = biz_email
+				if biz_phone:
+					invoice.business_phone = biz_phone
+				if biz_addr:
+					invoice.business_address = biz_addr
+				# Business photo upload removed from invoice flow; users should edit
+				# their BusinessProfile to update the canonical logo instead.
+				# Handle client creation when a new client name was typed instead of selecting existing client
 				try:
-					invoice.template_choice = str(tpl)
+					client_field = request.POST.get('client') or ''
+					new_client_name = request.POST.get('id_client_create') or request.POST.get('client_name') or ''
+					if (not client_field) and new_client_name:
+						# create lightweight client record and attach
+						client = Client.objects.create(
+							user=request.user,
+							name=new_client_name,
+							email=request.POST.get('client_email') or request.POST.get('id_client_email') or '',
+							phone=request.POST.get('client_phone') or request.POST.get('id_client_phone') or '',
+							address=request.POST.get('client_address') or request.POST.get('id_client_address') or ''
+						)
+						# attach to invoice if model has a client relation
+						try: setattr(invoice, 'client', client)
+						except Exception: pass
+					elif client_field:
+						try:
+							cobj = Client.objects.filter(pk=int(client_field), user=request.user).first()
+							if cobj:
+								try: setattr(invoice, 'client', cobj)
+								except Exception: pass
+						except Exception:
+							pass
 				except Exception:
 					pass
-
-			# Read any business fields submitted so we can populate the invoice snapshot
-			biz_id = post_data.get('business_id') or post_data.get('business') or ''
-			biz_name = post_data.get('business_name') or post_data.get('id_business_name_text') or ''
-			biz_email = post_data.get('business_email') or post_data.get('id_business_email_text') or ''
-			biz_phone = post_data.get('business_phone') or post_data.get('id_business_phone_text') or ''
-			biz_addr = post_data.get('business_address') or post_data.get('id_business_address_text') or ''
-
-			# populate business snapshot fields on the invoice so the PDF/preview
-			# remains the same even if the user's BusinessProfile changes later
-			if biz_name:
-				invoice.business_name = biz_name
-			if biz_email:
-				invoice.business_email = biz_email
-			if biz_phone:
-				invoice.business_phone = biz_phone
-			if biz_addr:
-				invoice.business_address = biz_addr
-			# Business photo upload removed from invoice flow; users should edit
-			# their BusinessProfile to update the canonical logo instead.
-			# Handle client creation when a new client name was typed instead of selecting existing client
-			try:
-				client_field = request.POST.get('client') or ''
-				new_client_name = request.POST.get('id_client_create') or request.POST.get('client_name') or ''
-				if (not client_field) and new_client_name:
-					# create lightweight client record and attach
-					client = Client.objects.create(
-						user=request.user,
-						name=new_client_name,
-						email=request.POST.get('client_email') or request.POST.get('id_client_email') or '',
-						phone=request.POST.get('client_phone') or request.POST.get('id_client_phone') or '',
-						address=request.POST.get('client_address') or request.POST.get('id_client_address') or ''
-					)
-					# attach to invoice if model has a client relation
-					try: setattr(invoice, 'client', client)
-					except Exception: pass
-				elif client_field:
-					try:
-						cobj = Client.objects.filter(pk=int(client_field), user=request.user).first()
-						if cobj:
-							try: setattr(invoice, 'client', cobj)
-							except Exception: pass
-					except Exception:
-						pass
-			except Exception:
-				pass
-			
-			# Persist or update a BusinessProfile snapshot if provided (and attach to invoice if possible)
-			biz_id = request.POST.get('business_id') or request.POST.get('business') or ''
-			biz_name = request.POST.get('business_name') or request.POST.get('id_business_name_text') or ''
-			biz_email = request.POST.get('business_email') or request.POST.get('id_business_email_text') or ''
-			biz_phone = request.POST.get('business_phone') or request.POST.get('id_business_phone_text') or ''
-			biz_addr = request.POST.get('business_address') or request.POST.get('id_business_address_text') or ''
-			bp_obj = None
-			try:
-				# Try to resolve an existing business by id first (respect visibility rules)
-				if biz_id:
-					try:
-						bp_obj = get_business_or_404_for_user(int(biz_id), request.user)
-					except Exception:
-						bp_obj = None
-				# If no matching id, but a name was provided, get or create by name for this user
-				if not bp_obj and biz_name:
-					bp_obj, created = BusinessProfile.objects.get_or_create(
-						user=request.user,
-						business_name=biz_name,
-						defaults={'email': biz_email or None, 'phone': biz_phone or None, 'address': biz_addr or None}
-					)
-				# If we have a BusinessProfile instance, update any provided fields and save
-				if bp_obj:
-					updated = False
-					if biz_name and bp_obj.business_name != biz_name:
-						bp_obj.business_name = biz_name; updated = True
-					if biz_email and bp_obj.email != biz_email:
-						bp_obj.email = biz_email; updated = True
-					if biz_phone and bp_obj.phone != biz_phone:
-						bp_obj.phone = biz_phone; updated = True
-					if biz_addr and bp_obj.address != biz_addr:
-						bp_obj.address = biz_addr; updated = True
-					# Do NOT copy invoice-uploaded business photo into the canonical BusinessProfile here.
-					# Invoice-level photo should be invoice-specific only and saved to Invoice.business_logo.
-					# Always save if we created the object or if any provided fields changed
-					if updated or (bp_obj.pk and not bp_obj.created_at):
-						bp_obj.save()
-
-				# Ensure invoice snapshot fields reflect the selected BusinessProfile when a profile was chosen
-				if bp_obj:
-					if not invoice.business_name:
-						invoice.business_name = bp_obj.business_name or invoice.business_name
-					if not invoice.business_email:
-						invoice.business_email = bp_obj.email or invoice.business_email
-					if not invoice.business_phone:
-						invoice.business_phone = bp_obj.phone or invoice.business_phone
-					if not invoice.business_address:
-						invoice.business_address = bp_obj.address or invoice.business_address
-					# If the BusinessProfile has a logo and the invoice doesn't, reference it on the invoice
-					try:
-						if getattr(bp_obj, 'logo', None) and not getattr(invoice, 'business_logo', None):
-							# Assign the underlying storage name so the file is referenced for the invoice
-							try:
-								invoice.business_logo.name = bp_obj.logo.name
-							except Exception:
-								invoice.business_logo = bp_obj.logo
-					except Exception:
-						pass
-			except Exception:
-				# don't let business profile failures block invoice saving
+				
+				# Persist or update a BusinessProfile snapshot if provided (and attach to invoice if possible)
+				biz_id = request.POST.get('business_id') or request.POST.get('business') or ''
+				biz_name = request.POST.get('business_name') or request.POST.get('id_business_name_text') or ''
+				biz_email = request.POST.get('business_email') or request.POST.get('id_business_email_text') or ''
+				biz_phone = request.POST.get('business_phone') or request.POST.get('id_business_phone_text') or ''
+				biz_addr = request.POST.get('business_address') or request.POST.get('id_business_address_text') or ''
 				bp_obj = None
-
-			try:
-				invoice.save()
-			except IntegrityError as e:
-				# Handle duplicate invoice_number (unique constraint) gracefully
-				msg = str(e)
-				_lower = msg.lower() if msg else ''
-				is_duplicate = ('duplicate' in _lower or 'duplicate key' in _lower or 'unique' in _lower or 'invoice_number' in _lower)
-				if is_duplicate:
-					# Attach form error so template shows inline validation
-					form.add_error('invoice_number', 'Invoice number already exists. Please choose a different invoice number.')
-				else:
-					form.add_error(None, 'Failed to save invoice: ' + msg)
-				# If this was an AJAX save request, return a structured JSON error so frontend can handle it
-				if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-					if is_duplicate:
-						return JsonResponse({'ok': False, 'error': 'duplicate_invoice_number', 'message': 'Invoice number already exists. Please choose a different invoice number.'}, status=400)
-					return JsonResponse({'ok': False, 'error': 'save_failed', 'message': str(msg)}, status=400)
-				# Fall through to re-render form with errors
-			# bind formset to the saved invoice instance and validate/save
-			formset = InvoiceItemFormSet(request.POST, request.FILES, instance=invoice)
-			if formset.is_valid():
-				formset.save()
-				invoice.recalc_totals()
-				# If an AJAX download-after-save was requested, return JSON with the new PK
-				download_after = (request.POST.get('download_after_save') == '1' or request.POST.get('download_after_save') == 'true')
-				if download_after and request.headers.get('x-requested-with') == 'XMLHttpRequest':
-					return JsonResponse({'ok': True, 'pk': invoice.pk})
-				# Record activity: invoice_created
 				try:
-					_record_user_activity(request.user, 'invoice_created', related_invoice=getattr(invoice, 'invoice_number', str(getattr(invoice, 'pk', ''))))
+					# Try to resolve an existing business by id first (respect visibility rules)
+					if biz_id:
+						try:
+							bp_obj = get_business_or_404_for_user(int(biz_id), request.user)
+						except Exception:
+							bp_obj = None
+					# If no matching id, but a name was provided, get or create by name for this user
+					if not bp_obj and biz_name:
+						bp_obj, created = BusinessProfile.objects.get_or_create(
+							user=request.user,
+							business_name=biz_name,
+							defaults={'email': biz_email or None, 'phone': biz_phone or None, 'address': biz_addr or None}
+						)
+					# If we have a BusinessProfile instance, update any provided fields and save
+					if bp_obj:
+						updated = False
+						if biz_name and bp_obj.business_name != biz_name:
+							bp_obj.business_name = biz_name; updated = True
+						if biz_email and bp_obj.email != biz_email:
+							bp_obj.email = biz_email; updated = True
+						if biz_phone and bp_obj.phone != biz_phone:
+							bp_obj.phone = biz_phone; updated = True
+						if biz_addr and bp_obj.address != biz_addr:
+							bp_obj.address = biz_addr; updated = True
+						# Do NOT copy invoice-uploaded business photo into the canonical BusinessProfile here.
+						# Invoice-level photo should be invoice-specific only and saved to Invoice.business_logo.
+						# Always save if we created the object or if any provided fields changed
+						if updated or (bp_obj.pk and not bp_obj.created_at):
+							bp_obj.save()
+
+					# Ensure invoice snapshot fields reflect the selected BusinessProfile when a profile was chosen
+					if bp_obj:
+						if not invoice.business_name:
+							invoice.business_name = bp_obj.business_name or invoice.business_name
+						if not invoice.business_email:
+							invoice.business_email = bp_obj.email or invoice.business_email
+						if not invoice.business_phone:
+							invoice.business_phone = bp_obj.phone or invoice.business_phone
+						if not invoice.business_address:
+							invoice.business_address = bp_obj.address or invoice.business_address
+						# If the BusinessProfile has a logo and the invoice doesn't, reference it on the invoice
+						try:
+							if getattr(bp_obj, 'logo', None) and not getattr(invoice, 'business_logo', None):
+								# Assign the underlying storage name so the file is referenced for the invoice
+								try:
+									invoice.business_logo.name = bp_obj.logo.name
+								except Exception:
+									invoice.business_logo = bp_obj.logo
+						except Exception:
+							pass
 				except Exception:
-					logging.exception('Failed to log invoice_created activity')
-				messages.success(request, 'Invoice created.')
-				return redirect('invoice_list')
-			else:
-				# surface formset errors to help debug client-side issues
-				msgs = []
-				for fs_err in formset.errors:
-					if fs_err:
-						msgs.append(str(fs_err))
-				if msgs:
-					messages.error(request, 'Invoice items errors: ' + '; '.join(msgs))
+					# don't let business profile failures block invoice saving
+					bp_obj = None
+
+				try:
+					invoice.save()
+				except IntegrityError as e:
+					# Handle duplicate invoice_number (unique constraint) gracefully
+					msg = str(e)
+					_lower = msg.lower() if msg else ''
+					is_duplicate = ('duplicate' in _lower or 'duplicate key' in _lower or 'unique' in _lower or 'invoice_number' in _lower)
+					if is_duplicate:
+						# Attach form error so template shows inline validation
+						form.add_error('invoice_number', 'Invoice number already exists. Please choose a different invoice number.')
+					else:
+						form.add_error(None, 'Failed to save invoice: ' + msg)
+					# If this was an AJAX save request, return a structured JSON error so frontend can handle it
+					if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+						if is_duplicate:
+							return JsonResponse({'ok': False, 'error': 'duplicate_invoice_number', 'message': 'Invoice number already exists. Please choose a different invoice number.'}, status=400)
+						return JsonResponse({'ok': False, 'error': 'save_failed', 'message': str(msg)}, status=400)
+					# Fall through to re-render form with errors
+				# bind formset to the saved invoice instance and validate/save
+				formset = InvoiceItemFormSet(request.POST, request.FILES, instance=invoice)
+				if formset.is_valid():
+					formset.save()
+					invoice.recalc_totals()
+					# If an AJAX download-after-save was requested, return JSON with the new PK
+					download_after = (request.POST.get('download_after_save') == '1' or request.POST.get('download_after_save') == 'true')
+					if download_after and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+						return JsonResponse({'ok': True, 'pk': invoice.pk})
+					# Record activity: invoice_created
+					try:
+						_record_user_activity(request.user, 'invoice_created', related_invoice=getattr(invoice, 'invoice_number', str(getattr(invoice, 'pk', ''))))
+					except Exception:
+						logging.exception('Failed to log invoice_created activity')
+					messages.success(request, 'Invoice created.')
+					return redirect('invoice_list')
 				else:
-					messages.error(request, 'Please correct the invoice items.')
+					# surface formset errors to help debug client-side issues
+					msgs = []
+					for fs_err in formset.errors:
+						if fs_err:
+							msgs.append(str(fs_err))
+					if msgs:
+						messages.error(request, 'Invoice items errors: ' + '; '.join(msgs))
+					else:
+						messages.error(request, 'Please correct the invoice items.')
 		except Exception as _exc:
 			logging.exception('invoice_create POST handler failed')
 			# For AJAX saves return JSON so frontend can display a helpful message
