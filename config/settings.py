@@ -128,4 +128,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
-WKHTMLTOPDF_CMD = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"  # Adjust path as necessary
+# Make wkhtmltopdf path configurable via env; default unset so WeasyPrint is used.
+WKHTMLTOPDF_CMD = os.getenv('WKHTMLTOPDF_CMD', '')
+
+# PDF backend: default to WeasyPrint (recommended). If you need wkhtmltopdf,
+# set `WKHTMLTOPDF_CMD` in the environment to the executable path.
+PDF_BACKEND = os.getenv('PDF_BACKEND', 'weasyprint')
+
+# Optional: Use S3 (or S3-compatible) storage for user-uploaded media. Railway
+# application filesystems can be ephemeral; enabling S3 keeps uploads persistent.
+USE_S3 = os.getenv('USE_S3', 'False') in ('True', 'true', '1') or bool(os.getenv('AWS_STORAGE_BUCKET_NAME'))
+if USE_S3:
+    INSTALLED_APPS += ['storages']
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME') or None
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL') or None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_DEFAULT_ACL = os.getenv('AWS_DEFAULT_ACL', 'private')

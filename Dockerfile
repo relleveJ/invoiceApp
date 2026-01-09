@@ -49,4 +49,6 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Use a shell CMD so the $PORT env var (set by Railway) is expanded. If PORT
+# is not set, default to 8000.
+CMD sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000}"
