@@ -12,9 +12,12 @@ django.setup()
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+# Default credentials (can be overridden via env vars)
+# NOTE: these defaults are intentionally set per user request; change in production.
 username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
 email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
-password = os.environ.get('DJANGO_SUPERUSER_PASSWORD') or secrets.token_urlsafe(12)
+# Use provided env var or default to requested password
+password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'adminInvoicemaker159')
 
 if User.objects.filter(username=username).exists():
     print(f"Superuser '{username}' already exists. No changes made.")
@@ -24,3 +27,5 @@ else:
     print(f'  username: {username}')
     print(f'  email: {email}')
     print(f'  password: {password}')
+    if password == 'adminInvoicemaker159' and not os.environ.get('DJANGO_SUPERUSER_PASSWORD'):
+        print('WARNING: Using default superuser password. It is recommended to set DJANGO_SUPERUSER_PASSWORD env var in production.')

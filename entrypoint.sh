@@ -32,6 +32,13 @@ echo "Running migrations..."
 python manage.py makemigrations --noinput || true
 python manage.py migrate --noinput
 
+echo "Ensuring superuser exists (if env vars provided)..."
+if [ -f "./scripts/create_superuser.py" ]; then
+	python ./scripts/create_superuser.py || true
+else
+	echo "No create_superuser script found; skipping superuser creation."
+fi
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 

@@ -1554,6 +1554,7 @@ def invoice_create(request):
 	# even when POST handling returns early due to validation errors.
 	businesses = get_businesses_for_user(request.user)
 	if request.method == 'POST':
+		try:
 		# If the user typed a new client name instead of selecting an existing client,
 		# create that Client first so the InvoiceForm (which requires `client` FK)
 		# can validate correctly.
@@ -1742,6 +1743,13 @@ def invoice_create(request):
 					messages.error(request, 'Invoice items errors: ' + '; '.join(msgs))
 				else:
 					messages.error(request, 'Please correct the invoice items.')
+		except Exception as _exc:
+			logging.exception('invoice_create POST handler failed')
+			# For AJAX saves return JSON so frontend can display a helpful message
+			if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+				return JsonResponse({'ok': False, 'error': 'server_error', 'message': str(_exc)}, status=500)
+			# For non-AJAX, surface a friendly message and fall through to re-render form
+			messages.error(request, 'An internal error occurred while creating the invoice. Please try again or contact support.')
 		else:
 			# show form errors for easier debugging
 			# If the invoice_number uniqueness error occurred, present a friendly warning
