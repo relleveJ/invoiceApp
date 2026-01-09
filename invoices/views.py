@@ -1875,69 +1875,12 @@ def superadmin_dashboard(request):
 	thirty_days_ago = timezone.now() - timedelta(days=30)
 	active_last_30 = User.objects.filter(last_login__gte=thirty_days_ago).count()
 
-	# Activity logs (may be absent on some deployments; handle gracefully)
-	log_q = request.GET.get('log_q', '').strip()
-	log_user = request.GET.get('log_user', '').strip()
+	# Activity logs have been moved out of the main dashboard to a dedicated
+	# page. Avoid loading the logs here to prevent accidental ProgrammingError
+	# when the unmanaged `users_activity_logs` table is not present in fresh
+	# deployments.
 	logs_page = None
 	logs_missing = False
-	try:
-		logs_qs = UsersActivityLog.objects.all().order_by('-timestamp')
-		if log_user:
-			try:
-				logs_qs = logs_qs.filter(user_id=int(log_user))
-			except Exception:
-				pass
-		if log_q:
-			logs_qs = logs_qs.filter(Q(activity_type__icontains=log_q) | Q(related_invoice__icontains=log_q))
-		log_page_num = int(request.GET.get('log_page', 1) or 1)
-		log_paginator = Paginator(logs_qs, 50)
-		logs_page = log_paginator.get_page(log_page_num)
-		# Build safe links for related_invoice values to avoid NoReverseMatch
-		for log in logs_page.object_list:
-			log.related_invoice_link = ''
-			# normalize timestamp to localtime for display
-			try:
-				ts = getattr(log, 'timestamp')
-				# Prefer converting to the system local timezone so display matches DB/server local time
-				try:
-					log.timestamp_local = ts.astimezone()
-				except Exception:
-					log.timestamp_local = timezone.localtime(ts)
-			except Exception:
-				log.timestamp_local = getattr(log, 'timestamp')
-			# normalize timestamp to localtime for display
-			try:
-				ts = getattr(log, 'timestamp')
-				try:
-					log.timestamp_local = ts.astimezone()
-				except Exception:
-					log.timestamp_local = timezone.localtime(ts)
-			except Exception:
-				log.timestamp_local = getattr(log, 'timestamp')
-			# debug timestamps for troubleshooting timezone mismatch
-			try:
-				logging.debug('superadmin_activity: activity_id=%s raw=%r localized=%r tz=%s', getattr(log, 'activity_id', None), ts, getattr(log, 'timestamp_local', None), timezone.get_current_timezone_name())
-			except Exception:
-				pass
-			try:
-				rel = (log.related_invoice or '').strip()
-				if not rel:
-					continue
-				if rel.isdigit():
-					try:
-						log.related_invoice_link = reverse('invoice_detail', args=(int(rel),))
-						continue
-					except Exception:
-						log.related_invoice_link = ''
-					inv = Invoice.objects.filter(invoice_number=str(rel)).first()
-					if inv:
-						log.related_invoice_link = reverse('invoice_detail', args=(inv.pk,))
-			except Exception:
-				log.related_invoice_link = ''
-	except (DatabaseError, ProgrammingError) as e:
-		# Table may not exist; show empty page and flag missing state for template
-		logs_missing = True
-		logs_page = Paginator([], 50).get_page(1)
 
 	context = {
 		'users_page': users_page,
@@ -1947,10 +1890,7 @@ def superadmin_dashboard(request):
 		'staff_users': staff_users,
 		'superusers': superusers,
 		'active_last_30': active_last_30,
-		'logs_page': logs_page,
-		'log_q': log_q,
-		'log_user': log_user,
-		'logs_missing': logs_missing,
+		# Activity logs intentionally omitted from main dashboard context
 	}
 	return render(request, 'superadmin/dashboard.html', context)
 

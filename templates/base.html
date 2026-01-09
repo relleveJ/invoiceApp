@@ -304,6 +304,11 @@
                                 <i class="fas fa-user-shield me-2"></i> Superadmin
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link mobile-offcanvas-link {% if request.resolver_match.url_name == 'superadmin_activity' %}active{% endif %}" href="{% url 'superadmin_activity' %}">
+                                <i class="fas fa-list-check me-2"></i> Activity
+                            </a>
+                        </li>
                         {% endif %}
                         <li class="nav-item">
                             <a class="nav-link mobile-offcanvas-link" href="{% url 'business_profile_setup' %}">
@@ -349,6 +354,11 @@
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'superadmin_dashboard' %}active{% endif %}" href="{% url 'superadmin_dashboard' %}">
                                 <i class="fas fa-user-shield me-2"></i> Superadmin
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'superadmin_activity' %}active{% endif %}" href="{% url 'superadmin_activity' %}">
+                                <i class="fas fa-list-check me-2"></i> Activity
                             </a>
                         </li>
                         {% endif %}
