@@ -58,6 +58,10 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+## Deployment
+For production deployment instructions (Railway one-click deploy and Docker), see [README_RAILWAY_DEPLOY.md](README_RAILWAY_DEPLOY.md).
+
+
 ## Database Schema
 
 Below is the table schema used by the application. Use this as a reference for migrations, exports, or documentation.
@@ -141,7 +145,7 @@ Below is the table schema used by the application. Use this as a reference for m
 Ad clicks are tracked client-side with `navigator.sendBeacon` (or fetch fallback) to `/track-ad-click/` and persisted to the `AdClick` model. The tracking is lightweight and non-blocking to avoid impacting navigation.
 
 ## Screenshots
-Add 5–7 screenshots in `/docs/screenshots/` showing:
+Add 5–7 screenshots
 - Invoice creation form
 - PDF output
 - Client management

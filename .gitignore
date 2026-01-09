@@ -1,0 +1,46 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+
+# SQLite DB (local)
+db.sqlite3
+*.sqlite3
+
+# Distribution / build
+build/
+dist/
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Staticfiles collected
+/staticfiles/
+
+# Logs
+*.log
+
+# Coverage
+htmlcov/
+.coverage
+
+# node
+node_modules/
