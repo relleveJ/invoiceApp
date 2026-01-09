@@ -284,16 +284,19 @@
 
             <!-- Business Profile photo input moved into Invoice Details (see above) -->
             
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save me-2"></i>Save Invoice
-            </button>
-            <button type="button" class="btn btn-outline-secondary ms-2" id="live-pdf-preview-btn">PREVIEW PDF</button>
-            <!-- Download button removed from page; use modal Download instead -->
-            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Cancel</a>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Invoice
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="live-pdf-preview-btn">PREVIEW PDF</button>
+                <!-- Download button removed from page; use modal Download instead -->
+                <a href="{% url 'invoice_list' %}" class="btn btn-secondary ms-auto">Cancel</a>
+            </div>
         </form>
-    </div>
     
+    <br>
     <!-- Sidebar: live preview and quick actions -->
+    <br>
     <div class="col-md-3">
         <div class="card mb-3">
                 <div class="card-body">

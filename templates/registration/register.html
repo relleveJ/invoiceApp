@@ -4,15 +4,18 @@
 <style>
   /* Dark, modern form styles scoped to this page */
   body { background: #070708; }
-  .auth-wrap { min-height: calc(100vh - 80px); display:flex; align-items:center; justify-content:center; padding:2rem 1rem; }
+  .auth-wrap { min-height: calc(100vh - 80px); display:flex; align-items:center; justify-content:center; padding:2rem 1rem; flex-direction:column; gap:18px; }
+  @media(min-width:768px){ .auth-wrap { flex-direction:row; align-items:flex-start; } }
+  .auth-wrap { position: relative; }
   .auth-card {
     width:100%; max-width:520px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
     border: 1px solid rgba(255,255,255,0.06); border-radius:14px; padding:1.5rem; box-shadow: 0 8px 30px rgba(2,6,23,0.6);
     color: #e6eef8;
   }
   .auth-card h3 { color:#fff; font-weight:600; margin-bottom:0.5rem; }
-  .form-control { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6eef8; }
-  .form-control::placeholder { color: rgba(230,238,248,0.45); }
+  /* Force form controls on this page to use high-contrast dark styles */
+  .auth-card .form-control { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.08) !important; color: #e6eef8 !important; }
+  .auth-card .form-control::placeholder { color: rgba(230,238,248,0.45) !important; }
   .form-control:focus { background: rgba(255,255,255,0.02); border-color: rgba(96,165,250,0.9); box-shadow:none; }
   .btn-primary { background: linear-gradient(90deg,#0ea5a4,#7c3aed); border: none; }
   .muted { color: rgba(230,238,248,0.55); font-size:0.95rem; }
@@ -21,9 +24,17 @@
 </style>
 
 <div class="auth-wrap">
+  <div class="auth-info" aria-hidden="true">
+    <div style="max-width:420px;padding:18px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);color:#e6eef8;">
+      <h4 style="margin-top:0;margin-bottom:6px;">Invoice Maker — Quick Overview</h4>
+      <p style="margin:0 0 8px;color:rgba(230,238,248,0.85);font-size:0.95rem;">Design, send, and track invoices. Built for small businesses and freelancers.</p>
+      <p style="margin:0 0 10px;color:rgba(230,238,248,0.78);font-size:0.92rem;">Sign up to try templates, client lists, and PDF export.</p>
+      {% include 'invoices/ads/ad_fragment.html' with ad_id='auth-ad-register' placement='auth_register' target_url='https://www.invoice-maker.example/' title='Try Invoice Maker' description='Templates, client lists, and PDF export.' logo_url='/static/img/smallbiz-guide.svg' user_context='auth_register' invoice_id=None %}
+    </div>
+  </div>
   <div class="auth-card">
     <h3>Register</h3>
-    <p class="muted">Create an account to manage invoices securely.</p>
+    <p class="muted">Create your account.</p>
 
     {% if messages %}
       {% for message in messages %}

@@ -14,6 +14,7 @@ window.AdTracker = (function(){
     const el = (typeof selector === 'string') ? document.querySelector(selector) : selector;
     if (!el) return;
     // minimal card to match server fragment shape (fallback)
+    const ctaHtml = cfg.cta ? `<a href="${cfg.target}" class="btn btn-sm btn-outline-primary ad-cta" target="_blank" rel="noopener noreferrer">${cfg.cta}</a>` : '';
     const html = `
       <div class="card ad-card mb-2" data-ad-id="${cfg.id}" data-ad-placement="${cfg.placement}" data-ad-target="${cfg.target}" data-ad-context="${cfg.context||''}" data-invoice-id="${cfg.invoice_id||''}">
         <div class="card-body d-flex gap-2 align-items-start">
@@ -22,7 +23,7 @@ window.AdTracker = (function(){
             <div style="font-weight:600;margin-top:2px;">${cfg.title||'Recommended for you'}</div>
             <div class="text-muted" style="font-size:0.85rem;margin-top:4px;">${cfg.description||''}</div>
             <div class="mt-2 d-flex gap-2">
-              <a href="${cfg.target}" class="btn btn-sm btn-outline-primary ad-cta" target="_blank" rel="noopener noreferrer">Learn more</a>
+              ${ctaHtml}
               <a href="#" class="btn btn-sm btn-link text-muted ad-dismiss">Dismiss</a>
             </div>
           </div>
@@ -31,15 +32,20 @@ window.AdTracker = (function(){
     el.insertAdjacentHTML('afterbegin', html);
     const root = el.querySelector('.ad-card');
     if (!root) return;
-    root.querySelector('.ad-cta').addEventListener('click', function(){
-      _send({ ad_id: cfg.id, placement: cfg.placement, url: cfg.target, user_context: cfg.context||'', invoice_id: cfg.invoice_id||null });
-      // allow navigation
-    });
-    root.querySelector('.ad-dismiss').addEventListener('click', function(e){
-      e.preventDefault();
-      root.style.display = 'none';
-      _send({ ad_id: cfg.id, placement: cfg.placement, url: '', user_context: cfg.context||'', invoice_id: cfg.invoice_id||null });
-    });
+    const adCta = root.querySelector('.ad-cta');
+    if (adCta){
+      adCta.addEventListener('click', function(){
+        _send({ ad_id: cfg.id, placement: cfg.placement, url: cfg.target, user_context: cfg.context||'', invoice_id: cfg.invoice_id||null });
+      });
+    }
+    const adDismiss = root.querySelector('.ad-dismiss');
+    if (adDismiss){
+      adDismiss.addEventListener('click', function(e){
+        e.preventDefault();
+        root.style.display = 'none';
+        _send({ ad_id: cfg.id, placement: cfg.placement, url: '', user_context: cfg.context||'', invoice_id: cfg.invoice_id||null });
+      });
+    }
   }
   function trackAdClick(payload){ _send(payload); }
   return { renderAd: renderAd, trackAdClick: trackAdClick };
