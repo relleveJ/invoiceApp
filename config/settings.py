@@ -11,8 +11,13 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-key-in-product
 # Default to False for safety in production; set DEBUG=True locally via env
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# Allow Railway-hosted domains and local development hosts
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*.railway.app']
+# Allow Railway-hosted domains and local development hosts.
+# Prefer explicit `ALLOWED_HOSTS` from env; otherwise allow common local and Railway patterns.
+_env_allowed = os.getenv('ALLOWED_HOSTS')
+if _env_allowed:
+    ALLOWED_HOSTS = [h.strip() for h in _env_allowed.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.railway.app', '.up.railway.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -63,12 +68,26 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # X-Forwarded-Proto header so Django knows the original request scheme.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Trust Railway app domains for CSRF when deployed over HTTPS. Keep DEBUG=True
-# for local dev so these settings don't interfere, but include the wildcard
-# to handle app-hosted domains.
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.railway.app',
-]
+# Build `CSRF_TRUSTED_ORIGINS` from env or from `ALLOWED_HOSTS`.
+# If you need to override, set `CSRF_TRUSTED_ORIGINS` env to a comma-separated list
+# of origins (including scheme), e.g. 'https://myapp.up.railway.app,https://example.com'.
+_env_csrf = os.getenv('CSRF_TRUSTED_ORIGINS')
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS = [c.strip() for c in _env_csrf.split(',') if c.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = []
+    for h in ALLOWED_HOSTS:
+        if h == '*' or h == '':
+            continue
+        # Leading dot means allow any subdomain: '.railway.app' -> 'https://*.railway.app'
+        if h.startswith('.'):
+            CSRF_TRUSTED_ORIGINS.append(f'https://*{h}')
+        # If hostname already contains a wildcard (e.g. '*.example.com') use it directly
+        elif '*' in h:
+            CSRF_TRUSTED_ORIGINS.append('https://' + h)
+        else:
+            # For plain hosts, add https:// prefix
+            CSRF_TRUSTED_ORIGINS.append(f'https://{h}')
 
 # Security defaults tuned per-environment
 # In local development keep redirects and secure cookies off to avoid HTTPS issues
