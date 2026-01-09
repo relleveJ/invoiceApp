@@ -19,8 +19,14 @@ email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
 # Use provided env var or default to requested password
 password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'adminInvoicemaker159')
 
-if User.objects.filter(username=username).exists():
-    print(f"Superuser '{username}' already exists. No changes made.")
+existing = User.objects.filter(username=username).first()
+if existing:
+    print(f"Superuser '{username}' already exists.")
+    # If an explicit password env var was provided, update the existing user's password
+    if os.environ.get('DJANGO_SUPERUSER_PASSWORD'):
+        existing.set_password(password)
+        existing.save()
+        print('Superuser password updated from DJANGO_SUPERUSER_PASSWORD env var.')
 else:
     User.objects.create_superuser(username=username, email=email, password=password)
     print('Superuser created:')

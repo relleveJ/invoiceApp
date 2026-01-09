@@ -128,6 +128,10 @@ def _record_user_activity(user, activity_type, related_invoice=None):
 				"INSERT INTO users_activity_logs (user_id, activity_type, timestamp, related_invoice) VALUES (%s, %s, %s, %s)",
 				[user_id, str(activity_type)[:200], ts, (related_invoice or '')[:200]]
 			)
+	except ProgrammingError:
+		# Activity log table may not exist in fresh deployments. Fail silently
+		# to avoid crashing the request/response cycle while keeping a brief log.
+		logging.warning('users_activity_logs table not present; skipping activity log for user %s', getattr(user, 'pk', user))
 	except Exception:
 		logging.exception('Failed to record user activity: %s for user %s', activity_type, getattr(user, 'pk', user))
 
