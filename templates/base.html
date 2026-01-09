@@ -230,10 +230,23 @@
             .table-responsive td.actions { padding-top: 0.25rem; }
             .table-responsive td .btn { display:block; width:100%; margin-bottom:0.5rem; }
         }
-        /* Ensure offcanvas appears above other elements on some Android browsers */
+        /* Mobile topbar: respect theme and show a subtle divider */
+        .mobile-topbar { background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+
+        /* Ensure offcanvas appears above other elements on some Android browsers
+           and remove the default white frame so our dark sidebar shows through. */
         .offcanvas {
             z-index: 1080;
+            background: transparent !important;
+            border: none !important;
+            width: 320px;
+            max-width: 85%;
         }
+
+        .offcanvas .offcanvas-header { background: transparent; border-bottom: none; color: var(--text-primary); }
+        .offcanvas .offcanvas-body.sidebar { padding: 0; height: 100vh; overflow-y: auto; box-shadow: none; }
+        .offcanvas .nav-link { padding: 0.85rem 1rem; font-size: 1rem; }
+        .offcanvas .btn-close { filter: invert(1) contrast(1.2); }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
