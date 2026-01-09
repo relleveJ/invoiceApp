@@ -6,5 +6,6 @@ WeasyPrint==60.1
 python-dotenv==1.0.0
 whitenoise==6.6.0
 gunicorn==21.2.0
-﻿# Pin django-storages to the latest 1.x release compatible with Python 3.11
+
+# Pin django-storages to the latest 1.x release compatible with Python 3.11
 django-storages[boto3]==1.14.6
