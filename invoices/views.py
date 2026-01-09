@@ -1798,7 +1798,14 @@ def invoice_create(request):
 		templates_qs = InvoiceTemplate.objects.all().order_by('-is_default', 'created_date')
 	except Exception:
 		templates_qs = []
-	return render(request, 'invoices/invoice_form.html', {'form': form, 'formset': formset, 'action': 'Create', 'businesses': businesses, 'business_initial': business_initial, 'invoice': empty_invoice, 'invoice_templates': templates_qs})
+	# Render the invoice form; catch template/render errors to log useful info
+	try:
+		return render(request, 'invoices/invoice_form.html', {'form': form, 'formset': formset, 'action': 'Create', 'businesses': businesses, 'business_initial': business_initial, 'invoice': empty_invoice, 'invoice_templates': templates_qs})
+	except Exception as e:
+		logging.exception('Failed to render invoice_create template')
+		if getattr(settings, 'DEBUG', False):
+			return HttpResponse(f'<h3>Template render error</h3><pre>{str(e)}</pre>', status=500)
+		return HttpResponse('An internal error occurred while rendering the invoice form. Check server logs for details.', status=500)
 
 
 @login_required
@@ -2447,7 +2454,13 @@ def invoice_edit(request, pk):
 		templates_qs = InvoiceTemplate.objects.all().order_by('-is_default', 'created_date')
 	except Exception:
 		templates_qs = []
-	return render(request, 'invoices/invoice_form.html', {'form': form, 'formset': formset, 'action': 'Edit', 'businesses': businesses, 'business_initial': business_initial, 'invoice': invoice, 'invoice_templates': templates_qs})
+	try:
+		return render(request, 'invoices/invoice_form.html', {'form': form, 'formset': formset, 'action': 'Edit', 'businesses': businesses, 'business_initial': business_initial, 'invoice': invoice, 'invoice_templates': templates_qs})
+	except Exception as e:
+		logging.exception('Failed to render invoice_edit template')
+		if getattr(settings, 'DEBUG', False):
+			return HttpResponse(f'<h3>Template render error</h3><pre>{str(e)}</pre>', status=500)
+		return HttpResponse('An internal error occurred while rendering the invoice form. Check server logs for details.', status=500)
 
 
 @login_required

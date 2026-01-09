@@ -247,6 +247,19 @@
         .offcanvas .offcanvas-body.sidebar { padding: 0; height: 100vh; overflow-y: auto; box-shadow: none; }
         .offcanvas .nav-link { padding: 0.85rem 1rem; font-size: 1rem; }
         .offcanvas .btn-close { filter: invert(1) contrast(1.2); }
+        /* Mobile-friendly blue sidebar (matches requested visual) */
+        @media (max-width: 767.98px) {
+            .mobile-sidebar-panel { background: linear-gradient(180deg,#0d6efd,#0b5ed7); color: white; height: 100vh; display:flex; flex-direction:column; }
+            .mobile-sidebar-panel .brand { padding: 18px 16px; font-weight:700; font-size:1.05rem; color:#fff; display:flex; align-items:center; gap:8px; }
+            .mobile-sidebar-panel .brand .logo-icon { width:28px; height:28px; border-radius:6px; background:#fff2; display:inline-block; }
+            .mobile-sidebar-panel .mobile-nav { padding: 8px 0; flex:1 1 auto; }
+            .mobile-sidebar-panel .mobile-nav a { display:flex; align-items:center; gap:12px; padding:14px 18px; color:rgba(255,255,255,0.95); text-decoration:none; border-radius:8px; margin:6px 12px; }
+            .mobile-sidebar-panel .mobile-nav a:hover { background: rgba(255,255,255,0.06); }
+            .mobile-sidebar-panel .mobile-nav a i { width:26px; text-align:center; font-size:1.05rem; }
+            .mobile-sidebar-panel .mobile-user { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:10px; }
+            .mobile-sidebar-panel .mobile-user .avatar { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.12); display:inline-block; }
+            .mobile-sidebar-panel .mobile-user .username { font-weight:600; color:#fff; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -326,53 +339,45 @@
 
             <!-- Mobile sidebar (offcanvas) -->
             <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
-                <div class="offcanvas-header">
-                    <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
-                    <button type="button" class="btn-close text-reset mobile-offcanvas-close" aria-label="Close"></button>
-                </div>
-                <div class="offcanvas-body sidebar">
-                    <div class="text-center mb-3">
-                        <h5>Invoice Maker</h5>
+                <div class="offcanvas-body p-0">
+                    <div class="mobile-sidebar-panel">
+                        <div class="brand">
+                            <span class="logo-icon"></span>
+                            <span>Invoice Maker</span>
+                        </div>
+                        <nav class="mobile-nav" aria-label="Mobile menu">
+                            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                                <i class="fas fa-home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="{% url 'invoice_list' %}" class="{% if 'invoice' in request.resolver_match.url_name %}active{% endif %}">
+                                <i class="fas fa-file-invoice"></i>
+                                <span>Invoices</span>
+                            </a>
+                            <a href="{% url 'client_list' %}" class="{% if 'client' in request.resolver_match.url_name %}active{% endif %}">
+                                <i class="fas fa-users"></i>
+                                <span>Clients</span>
+                            </a>
+                            <a href="{% url 'business_profile_setup' %}">
+                                <i class="fas fa-building"></i>
+                                <span>Business Profile</span>
+                            </a>
+                            {% if user.is_superuser %}
+                            <a href="{% url 'superadmin_dashboard' %}" class="{% if request.resolver_match.url_name == 'superadmin_dashboard' %}active{% endif %}">
+                                <i class="fas fa-user-shield"></i>
+                                <span>Superadmin</span>
+                            </a>
+                            <a href="{% url 'superadmin_activity' %}" class="{% if request.resolver_match.url_name == 'superadmin_activity' %}active{% endif %}">
+                                <i class="fas fa-list-check"></i>
+                                <span>Activity</span>
+                            </a>
+                            {% endif %}
+                        </nav>
+                        <div class="mobile-user">
+                            <div class="avatar"></div>
+                            <div class="username">{{ user.username }}</div>
+                        </div>
                     </div>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-                                <i class="fas fa-home me-2"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'client_list' %}">
-                                <i class="fas fa-users me-2"></i> Clients
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'invoice' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'invoice_list' %}">
-                                <i class="fas fa-file-invoice me-2"></i> Invoices
-                            </a>
-                        </li>
-                        {% if user.is_superuser %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'superadmin_dashboard' %}active{% endif %}" href="{% url 'superadmin_dashboard' %}">
-                                <i class="fas fa-user-shield me-2"></i> Superadmin
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'superadmin_activity' %}active{% endif %}" href="{% url 'superadmin_activity' %}">
-                                <i class="fas fa-list-check me-2"></i> Activity
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'business_profile_setup' %}">
-                                <i class="fas fa-building me-2"></i> Business Profile
-                            </a>
-                        </li>
-                        <li class="nav-item mt-3">
-                            <a class="nav-link text-danger" href="{% url 'logout' %}">
-                                <i class="fas fa-sign-out-alt me-2"></i> Logout
-                            </a>
-                        </li>
-                    </ul>
                 </div>
             </div>
 
