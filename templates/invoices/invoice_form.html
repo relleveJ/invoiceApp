@@ -1,8 +1,22 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-9">
+<style>
+    /* Desktop: layout with main form on left and a fixed-width sidebar on the right */
+    @media(min-width:992px){
+        .invoice-layout { display:flex; align-items:flex-start; gap:24px; flex-wrap:nowrap; }
+        .invoice-main { flex:1 1 auto; max-width: none; min-width: 0; }
+        .invoice-sidebar { flex:0 0 340px; max-width:340px; box-sizing:border-box; }
+        .invoice-sidebar .sidebar-sticky, .invoice-main .sidebar-sticky { position:sticky; top:80px; max-height:calc(100vh - 100px); overflow:auto; }
+    }
+    /* Mobile: stack vertically */
+    @media(max-width:991px){
+        .invoice-layout { display:block; }
+        .sidebar-sticky { position:static; max-height:none; overflow:visible; }
+    }
+</style>
+<div class="row invoice-layout">
+        <div class="col-md-9 invoice-main">
         <h1>{{ action }} Invoice</h1>
         
                 <form method="post" id="invoice-form" class="invoice-form" enctype="multipart/form-data" action="{% if action == 'Create' %}{% url 'invoice_create' %}{% else %}{% if form.instance.pk %}{% url 'invoice_edit' form.instance.pk %}{% else %}{% url 'invoice_create' %}{% endif %}{% endif %}">
@@ -202,27 +216,28 @@
                                 <th style="width: 15%">Quantity</th>
                                 <th class="unit-price-header" style="width: 15%">Unit Price</th>
                                 <th class="total-header" style="width: 15%">Total</th>
-                                <th class="delete-header" style="width: 15%"><span>Delete</span>
-                                    <input type="checkbox" id="select-all-delete" class="select-all-checkbox" title="Select all for deletion" aria-label="Select all for deletion" />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="items-tbody">
-                            {% for form in formset %}
-                            <tr class="item-row">
-                                {{ form.id }}
-                                <td data-label="Description">{{ form.description }}</td>
-                                <td data-label="Quantity">{{ form.quantity }}</td>
-                                <td data-label="Unit Price">{{ form.unit_price }}</td>
-                                <td data-label="Total"><span class="line-total">$0.00</span></td>
-                                <td class="delete-cell" data-label="Delete">{{ form.DELETE }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
+                                        <th class="delete-header" style="width: 15%"><span>Delete</span>
+                                            <input type="checkbox" id="select-all-delete" class="select-all-checkbox" title="Select all for deletion" aria-label="Select all for deletion" />
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-tbody">
+                                {% for form in formset.forms %}
+                                    <tr class="item-row">
+                                        {# include hidden fields (id, ORDERING, etc) so the formset posts correctly #}
+                                        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                                        <td data-label="Description">{{ form.description }}</td>
+                                        <td data-label="Quantity">{{ form.quantity }}</td>
+                                        <td data-label="Unit Price">{{ form.unit_price }}</td>
+                                        <td data-label="Total"><span class="line-total">$0.00</span></td>
+                                        <td class="delete-cell" data-label="Delete">{{ form.DELETE }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
                         <!-- Hidden empty form template for adding rows -->
                         <tbody id="empty-form-template" style="display:none">
                             <tr class="item-row">
-                                {{ formset.empty_form.id }}
+                                {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
                                 <td data-label="Description">{{ formset.empty_form.description }}</td>
                                 <td data-label="Quantity">{{ formset.empty_form.quantity }}</td>
                                 <td data-label="Unit Price">{{ formset.empty_form.unit_price }}</td>
@@ -288,16 +303,16 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-2"></i>Save Invoice
                 </button>
-                <button type="button" class="btn btn-outline-secondary" id="live-pdf-preview-btn">PREVIEW PDF</button>
+                <button type="button" class="btn btn-outline-secondary" id="live-pdf-preview-btn">DOWNLOAD PDF</button>
                 <!-- Download button removed from page; use modal Download instead -->
                 <a href="{% url 'invoice_list' %}" class="btn btn-secondary ms-auto">Cancel</a>
             </div>
         </form>
+        </div>
     
-    <br>
+    <br><br>
     <!-- Sidebar: live preview and quick actions -->
-    <br>
-    <div class="col-md-3">
+    <div class="col-md-3 invoice-sidebar">
         <div class="card mb-3">
                 <div class="card-body">
                     <h5>Live Preview</h5>
@@ -375,7 +390,7 @@
                             }
                             [data-theme="dark"] #invoice-preview .text-muted, [data-theme="dark"] #invoice-preview small { color: var(--text-secondary) !important; }
                         </style>
-                        <iframe id="invoice-preview-iframe" sandbox="allow-same-origin allow-scripts"></iframe>
+                        <iframe id="invoice-preview-iframe" sandbox="allow-scripts"></iframe>
                     </div>
                 </div>
         </div>
