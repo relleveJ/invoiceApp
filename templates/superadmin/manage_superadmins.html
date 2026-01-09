@@ -8,6 +8,17 @@
   </div>
 
   <div class="card mt-3 p-3">
+    <div class="mb-3">
+      <h5>Create New Superadmin</h5>
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <div class="col-md-3"><input name="new_username" type="text" class="form-control" placeholder="Username" required></div>
+        <div class="col-md-4"><input name="new_email" type="email" class="form-control" placeholder="Email (optional)"></div>
+        <div class="col-md-2"><input name="new_password" type="password" class="form-control" placeholder="Password" required></div>
+        <div class="col-md-2"><input name="new_confirm_password" type="password" class="form-control" placeholder="Confirm" required></div>
+        <div class="col-md-1"><button class="btn btn-primary w-100" type="submit">Create</button></div>
+      </form>
+    </div>
     <form method="get" class="mb-2">
       <div class="input-group">
         <input type="text" name="q" class="form-control" placeholder="Search username or email" value="{{ q }}">

@@ -25,6 +25,7 @@ import tempfile
 import os
 import uuid
 from django.db import connection
+from django.db.utils import ProgrammingError
 
 
 from .models import BusinessProfile, Client, Invoice, InvoiceItem, AdClick, BusinessProfileTrash, ClientTrash, InvoiceTrash, InvoiceTemplate
@@ -1795,7 +1796,10 @@ def invoice_create(request):
 	business_initial = {'id': '', 'name': '', 'email': '', 'phone': '', 'address': '', 'logo_url': ''}
 	# provide DB-backed templates for selection (if table exists)
 	try:
-		templates_qs = InvoiceTemplate.objects.all().order_by('-is_default', 'created_date')
+		# Force evaluation (list()) so missing-table errors are raised here
+		templates_qs = list(InvoiceTemplate.objects.all().order_by('-is_default', 'created_date'))
+	except ProgrammingError:
+		templates_qs = []
 	except Exception:
 		templates_qs = []
 	# Render the invoice form; catch template/render errors to log useful info
@@ -2139,6 +2143,32 @@ def superadmin_manage_superadmins(request):
 	q = request.GET.get('q', '').strip()
 	page = int(request.GET.get('page', 1) or 1)
 
+	# Allow creating a new superadmin via POST from the Manage Superadmins page
+	if request.method == 'POST':
+		username = request.POST.get('new_username', '').strip()
+		email = request.POST.get('new_email', '').strip()
+		password = request.POST.get('new_password', '').strip()
+		confirm = request.POST.get('new_confirm_password', '').strip()
+		if not username or not password:
+			messages.error(request, 'Username and password are required to create a superadmin.')
+		elif password != confirm:
+			messages.error(request, 'Passwords do not match.')
+		elif User.objects.filter(username=username).exists():
+			messages.error(request, 'A user with that username already exists.')
+		else:
+			try:
+				new = User.objects.create_user(username=username, email=email)
+				new.is_superuser = True
+				new.is_staff = True
+				new.is_active = True
+				new.set_password(password)
+				new.save()
+				messages.success(request, 'Superadmin created.')
+				return redirect(request.META.get('HTTP_REFERER') or reverse('superadmin_manage_superadmins'))
+			except Exception:
+				logging.exception('Failed to create superadmin %s', username)
+				messages.error(request, 'Failed to create superadmin.')
+
 	qs = User.objects.filter(is_superuser=True).order_by('-date_joined')
 	if q:
 		qs = qs.filter(Q(username__icontains=q) | Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
@@ -2451,7 +2481,9 @@ def invoice_edit(request, pk):
 						pass
 
 	try:
-		templates_qs = InvoiceTemplate.objects.all().order_by('-is_default', 'created_date')
+		templates_qs = list(InvoiceTemplate.objects.all().order_by('-is_default', 'created_date'))
+	except ProgrammingError:
+		templates_qs = []
 	except Exception:
 		templates_qs = []
 	try:

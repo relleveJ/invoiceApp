@@ -24,7 +24,7 @@
                             /* Inputs sizing and box model */
                             #items-table input[name$='-description'] { width:100%; box-sizing:border-box; margin:0; }
                             #items-table input[name$='-quantity'],
-                            #items-table input[name$='-unit_price'] { width:110px; box-sizing:border-box; text-align:right; }
+                            #items-table input[name$='-unit_price'] { max-width:110px; width:100%; box-sizing:border-box; text-align:right; }
 
                             /* Make line total align visually under the Total header */
                             #items-table .line-total { text-align: right; font-weight:600; min-width:80px; display:block; width:100%; box-sizing:border-box; }
@@ -42,8 +42,8 @@
                             th.delete-header span { display:inline-block; font-weight:600; }
                             #items-table thead th .select-all-checkbox { position:static; transform: scale(1.12); margin:0; }
 
-                            /* Ensure Delete column has a sensible minimum width so checkbox doesn't overlap label */
-                            #items-table td.delete-cell, #items-table th.delete-header { width:8%; min-width:90px; }
+                            /* Ensure Delete column can shrink on small screens */
+                            #items-table td.delete-cell, #items-table th.delete-header { width:8%; min-width:0; }
 
                             /* Ensure bootstrap form-controls inside table cells don't add extra margins */
                             #items-table td .form-control { margin:0; height:calc(1.5em + .5rem + 2px); padding:.25rem .5rem; }
@@ -58,7 +58,7 @@
 
                             /* Small screens: reduce input width to avoid wrapping and provide stacked card view */
                             @media(max-width:767px){
-                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { width:80px; }
+                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { max-width:80px; width:100%; }
                             }
 
                             /* Mobile stacked view for invoice items: convert rows into card-like blocks */
@@ -69,8 +69,8 @@
                                 #items-table td { padding:.35rem 0; }
                                 #items-table td[data-label]::before { content: attr(data-label) ": "; font-weight:600; color:#6c757d; display:inline-block; width:40%; }
                                 #items-table td.delete-cell { text-align:right; }
-                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { width:120px; float:right; text-align:right; }
-                                #items-table .line-total { float:right; font-weight:600; }
+                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { max-width:120px; width:100%; margin-left:auto; text-align:right; }
+                                #items-table .line-total { display:block; text-align:right; font-weight:600; }
                             }
 
                             /* Row padding consistency */
@@ -132,7 +132,7 @@
                                             {% endfor %}
                                         {% endif %}
                                     </select>
-                                    <input type="text" id="id_business_create" class="form-control mt-2" placeholder="Or type a new business name" style="display:none; width:220px;" />
+                                    <input type="text" id="id_business_create" class="form-control mt-2" placeholder="Or type a new business name" style="display:none; max-width:220px; width:100%;" />
                                     
                                 </div>
                             </div>

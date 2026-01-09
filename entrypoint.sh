@@ -39,6 +39,9 @@ else
 	echo "No create_superuser script found; skipping superuser creation."
 fi
 
+echo "Creating any required unmanaged tables (invoice_templates, users_activity_logs)..."
+python manage.py create_unmanaged_tables || true
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
