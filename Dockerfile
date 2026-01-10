@@ -27,7 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpangocairo-1.0-0 \
     libcairo2 \
     shared-mime-info \
-    wkhtmltopdf \
+    && rm -rf /var/lib/apt/lists/*
+# Note: `wkhtmltopdf` is not available in the Debian package repo used by this
+# base image (causes build failures on Railway). This project uses ReportLab
+# for PDF generation by default; if you need `wkhtmltopdf`, install a
+# prebuilt binary or add the appropriate APT repository in a custom image.
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
