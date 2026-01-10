@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import os
 import logging
+import io
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, Http404
@@ -93,6 +94,308 @@ def get_business_or_404_for_user(pk, user):
 	if getattr(bp, 'user_id', None) != getattr(user, 'id', None):
 		raise Http404('No BusinessProfile matches the given query.')
 	return bp
+
+
+def _render_invoice_pdf_reportlab(invoice, business):
+	"""Render a simple invoice PDF using ReportLab and return bytes."""
+	try:
+		# Import reportlab here so missing package results in a handled exception
+		try:
+			from reportlab.lib.pagesizes import letter
+			from reportlab.pdfgen import canvas
+		except Exception:
+			raise RuntimeError('reportlab_unavailable')
+		buf = io.BytesIO()
+		page_size = letter
+		c = canvas.Canvas(buf, pagesize=page_size)
+		width, height = page_size
+		margin = 36
+		y = height - margin
+
+		# Helpful measurement helpers
+		from reportlab.pdfbase import pdfmetrics
+		from reportlab.lib.utils import ImageReader
+
+		def draw_wrapped(text, x, y, max_width, fontname='Helvetica', fontsize=10, leading=None):
+			if leading is None:
+				leading = int(fontsize * 1.15)
+			c.setFont(fontname, fontsize)
+			words = str(text or '').split()
+			lines = []
+			current = ''
+			for w in words:
+				trial = (current + ' ' + w).strip()
+				if pdfmetrics.stringWidth(trial, fontname, fontsize) <= max_width:
+					current = trial
+				else:
+					lines.append(current)
+					current = w
+			if current:
+				lines.append(current)
+			for ln in lines:
+				c.drawString(x, y, ln)
+			y_new = y - leading * len(lines)
+			return y_new, len(lines), leading
+
+		# Header: attempt to draw logo at left, then business name/address to the right
+		biz_name = getattr(business, 'business_name', '') or ''
+		logo_drawn = False
+		logo_w = 0
+		logo_h = 0
+		logo_url = None
+		if business and getattr(business, 'logo', None):
+			logo_obj = getattr(business, 'logo')
+			logo_url = getattr(logo_obj, 'url', None) or (logo_obj if isinstance(logo_obj, str) else None)
+		if logo_url:
+			img_bytes = None
+			try:
+				import urllib.request, base64
+				if str(logo_url).startswith('data:'):
+					payload = str(logo_url).split(',', 1)[1]
+					img_bytes = base64.b64decode(payload)
+				else:
+					with urllib.request.urlopen(logo_url, timeout=8) as r:
+						img_bytes = r.read()
+			except Exception:
+				img_bytes = None
+			if img_bytes:
+				try:
+					img_reader = ImageReader(io.BytesIO(img_bytes))
+					orig_w, orig_h = img_reader.getSize()
+					max_h = 60
+					scale = min(1.0, max_h / float(orig_h)) if orig_h else 1.0
+					logo_w = orig_w * scale
+					logo_h = orig_h * scale
+					c.drawImage(img_reader, margin, y - logo_h, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
+					logo_drawn = True
+				except Exception:
+					logo_drawn = False
+
+		# Business name and details to right of logo
+		text_x = margin + (logo_w + 8 if logo_drawn else 0)
+		c.setFont('Helvetica-Bold', 16)
+		c.drawString(text_x, y - 4, biz_name)
+		c.setFont('Helvetica', 9)
+		addr_lines = []
+		try:
+			if business:
+				for fld in ('address', 'city', 'state', 'zip_code', 'country', 'email', 'phone'):
+					val = getattr(business, fld, None)
+					if val:
+						addr_lines.append(str(val))
+		except Exception:
+			pass
+		addr_y = y - 22
+		for ln in addr_lines[:4]:
+			c.drawString(text_x, addr_y, ln)
+			addr_y -= 12
+
+		# Invoice block on the right
+		c.setFont('Helvetica-Bold', 18)
+		c.drawRightString(width - margin, y - 2, 'INVOICE')
+		c.setFont('Helvetica', 9)
+		meta_y = y - 26
+		inv_num = getattr(invoice, 'invoice_number', '') or ''
+		inv_date = getattr(invoice, 'invoice_date', '') or ''
+		inv_due = getattr(invoice, 'due_date', '') or ''
+		status = getattr(invoice, 'status', '') or ''
+		c.drawRightString(width - margin, meta_y, f'Invoice #: {inv_num}')
+		meta_y -= 12
+		c.drawRightString(width - margin, meta_y, f'Date: {inv_date}')
+		meta_y -= 12
+		c.drawRightString(width - margin, meta_y, f'Due: {inv_due}')
+		meta_y -= 12
+		c.drawRightString(width - margin, meta_y, f'Status: {status}')
+
+		# Move down for body
+		y = min(addr_y, meta_y) - 18
+
+		# Bill To block
+		c.setFont('Helvetica-Bold', 11)
+		c.drawString(margin, y, 'Bill To:')
+		y -= 14
+		c.setFont('Helvetica', 10)
+		client = getattr(invoice, 'client', None)
+		client_name = getattr(client, 'name', None) or getattr(invoice, 'client_name', '') or ''
+		y, _, _ = draw_wrapped(client_name, margin, y, max_width=width/2 - margin)
+		y -= 6
+
+		# separator line
+		c.setStrokeColorRGB(0.7, 0.7, 0.7)
+		c.setLineWidth(0.5)
+		c.line(margin, y, width - margin, y)
+		y -= 12
+
+		# Table headers
+		c.setFont('Helvetica-Bold', 10)
+		desc_x = margin
+		qty_x = width - 240
+		unit_x = width - 140
+		total_x = width - margin
+		c.drawString(desc_x, y, 'Description')
+		c.drawRightString(qty_x, y, 'Qty')
+		c.drawRightString(unit_x, y, 'Unit')
+		c.drawRightString(total_x, y, 'Total')
+		y -= 12
+		c.setFont('Helvetica', 10)
+
+		# Items
+		items = []
+		try:
+			items = list(getattr(invoice, 'items').all() if getattr(invoice, 'items', None) else [])
+		except Exception:
+			try:
+				items = getattr(invoice, 'items') or []
+			except Exception:
+				items = []
+
+		for it in items:
+			if y < 140:
+				c.showPage()
+				y = height - margin
+				tc = c
+			desc = getattr(it, 'description', '') or ''
+			qty = getattr(it, 'quantity', 0) or 0
+			unit = getattr(it, 'unit_price', 0) or 0
+			line_total = getattr(it, 'line_total', None)
+			if line_total is None:
+				try:
+					line_total = float(qty) * float(unit)
+				except Exception:
+					line_total = 0
+			# Draw description wrapped; keep qty/unit/total aligned to the first line
+			y_before = y
+			y_after, lines_count, leading = draw_wrapped(desc, desc_x, y, max_width=(qty_x - desc_x - 8), fontname='Helvetica', fontsize=10)
+			# center qty/unit/total vertically across the wrapped description lines
+			if lines_count > 0:
+				mid_index = (lines_count - 1) / 2.0
+				mid_y = y_before - (leading * mid_index)
+			else:
+				mid_y = y_before
+			c.drawRightString(qty_x, mid_y, str(qty))
+			c.drawRightString(unit_x, mid_y, f'{float(unit):.2f}')
+			c.drawRightString(total_x, mid_y, f'{float(line_total):.2f}')
+			y = y_after - 6
+
+		# Totals
+		y -= 8
+		subtotal = getattr(invoice, 'subtotal', None)
+		if subtotal is None:
+			try:
+				subtotal = sum([float(getattr(it, 'line_total', 0) or 0) for it in items])
+			except Exception:
+				subtotal = 0
+		tax = getattr(invoice, 'tax_amount', 0) or 0
+		discount = getattr(invoice, 'discount_amount', 0) or 0
+		total = getattr(invoice, 'total_amount', None)
+		if total is None:
+			try:
+				total = subtotal + float(tax) - float(discount)
+			except Exception:
+				total = subtotal
+
+		currency = (getattr(business, 'currency', None) or 'USD')
+		# Draw totals block aligned at right
+		c.setFont('Helvetica', 10)
+		c.drawRightString(total_x, y, f'Subtotal: {currency} {float(subtotal):,.2f}')
+		y -= 14
+		# Show tax label including rate if available
+		tax_rate = getattr(invoice, 'tax_rate', None)
+		if tax_rate:
+			label = f'Tax ({tax_rate}%):'
+		else:
+			label = 'Tax:'
+		c.drawRightString(total_x, y, f"{label} {currency} {float(tax):,.2f}")
+		y -= 14
+		if float(discount or 0):
+			c.drawRightString(total_x, y, f'Discount: -{currency} {float(discount):,.2f}')
+			y -= 14
+		c.setFont('Helvetica-Bold', 13)
+		# draw line above total
+		c.setLineWidth(1)
+		c.line(total_x - 180, y + 10, total_x, y + 10)
+		c.drawRightString(total_x, y, f'Total: {currency} {float(total):,.2f}')
+
+		# Render payment terms and notes (if present) below totals
+		y -= 18
+		try:
+			pt = getattr(invoice, 'payment_terms', None) or ''
+			nt = getattr(invoice, 'notes', None) or ''
+			if pt:
+				c.setFont('Helvetica-Bold', 11)
+				c.drawString(margin, y, 'Payment Terms:')
+				y -= 14
+				c.setFont('Helvetica', 10)
+				y, _, _ = draw_wrapped(str(pt), margin, y, max_width=(width - 2*margin), fontname='Helvetica', fontsize=10)
+				y -= 8
+			if nt:
+				c.setFont('Helvetica-Bold', 11)
+				c.drawString(margin, y, 'Notes:')
+				y -= 14
+				c.setFont('Helvetica', 10)
+				y, _, _ = draw_wrapped(str(nt), margin, y, max_width=(width - 2*margin), fontname='Helvetica', fontsize=10)
+		except Exception:
+			# keep going if wrapping fails
+			pass
+
+		# Footer: Thank you and machine-generated notice centered at page bottom
+		try:
+			c.setFont('Helvetica', 9)
+			c.setFillColorRGB(0.44, 0.48, 0.58)
+			footer_y = margin / 2
+			try:
+				biz_email = getattr(business, 'email', '') or ''
+			except Exception:
+				biz_email = ''
+			c.drawCentredString(width/2, footer_y, 'Thank you for your business!')
+			c.drawCentredString(width/2, footer_y - 12, f'This is a computer-generated invoice. For questions, contact {biz_email}')
+			# restore fill color to black for any subsequent content
+			c.setFillColorRGB(0,0,0)
+		except Exception:
+			pass
+
+		c.showPage()
+		c.save()
+		pdf_bytes = buf.getvalue()
+		buf.close()
+		return pdf_bytes
+	except RuntimeError:
+		# propagate reportlab_unavailable
+		raise
+	except Exception:
+		try:
+			buf.close()
+		except Exception:
+			pass
+		raise
+
+
+# WeasyPrint support removed: PDF generation is handled via ReportLab
+
+
+def _render_invoice_pdf_html(invoice, business, request=None):
+	"""Optional: render invoice to PDF via an HTML->PDF renderer (WeasyPrint).
+	This is provided as an opt-in helper. It requires WeasyPrint and its native
+	dependencies (Cairo, Pango, GDK). Callers should catch RuntimeError if
+	the environment isn't prepared.
+	"""
+	try:
+		import weasyprint
+	except Exception:
+		raise RuntimeError('weasyprint_unavailable')
+
+	# Render the same invoice template used for the live preview if available.
+	context = {'invoice': invoice, 'business': business}
+	# If request is provided, use it for absolute URLs; otherwise let WeasyPrint
+	# try to resolve resources relative to the project root.
+	html = render_to_string('invoices/invoice_pdf_template.html', context)
+	# base_url allows relative urls (media/static) to be resolved in WeasyPrint
+	base = None
+	try:
+		base = (request.build_absolute_uri('/') if request is not None else None)
+	except Exception:
+		base = None
+	return weasyprint.HTML(string=html, base_url=base).write_pdf()
 
 
 def get_businesses_for_user(user):
@@ -1528,29 +1831,35 @@ def invoice_live_preview(request, pk=None):
 			# on any error, keep default html_string
 			pass
 
-	# Try to render PDF
-	# If caller explicitly asked for HTML preview (format=html), return the rendered HTML
+	# If caller explicitly requested HTML preview, return it immediately
 	if (request.GET.get('format') or '').lower() == 'html':
 		return HttpResponse(html_string, content_type='text/html')
-	try:
-		from weasyprint import HTML
-	except Exception:
-		# If a PDF download was explicitly requested, still return the HTML but include a helpful status/message.
-		# The client-side will handle non-PDF responses gracefully.
-		return HttpResponse(html_string, content_type='text/html')
 
+	# Render PDF using ReportLab to match the preview data
 	try:
-		html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
-		pdf = html.write_pdf()
-		response = HttpResponse(pdf, content_type='application/pdf')
-		# If client requested a direct download (e.g., ?format=pdf) send as attachment, otherwise inline preview
+		pdf_bytes = _render_invoice_pdf_reportlab(invoice_obj, business)
+		resp = HttpResponse(pdf_bytes, content_type='application/pdf')
 		if request.GET.get('format') == 'pdf':
-			response['Content-Disposition'] = 'attachment; filename="invoice_preview.pdf"'
+			resp['Content-Disposition'] = 'attachment; filename="invoice_preview.pdf"'
 		else:
-			response['Content-Disposition'] = 'inline; filename="invoice_preview.pdf"'
-		return response
-	except Exception:
-		return HttpResponse(html_string, content_type='text/html')
+			resp['Content-Disposition'] = 'inline; filename="invoice_preview.pdf"'
+		try:
+			resp['X-PDF-BACKEND-OK'] = 'reportlab'
+		except Exception:
+			pass
+		return resp
+	except RuntimeError as e:
+		if str(e) == 'reportlab_unavailable':
+			msg = ('ReportLab is not available in the Python environment. Please install the `reportlab` package into your virtualenv (pip install reportlab) before generating PDFs.')
+			if request.headers.get('x-requested-with') == 'XMLHttpRequest' or (request.content_type or '').lower().startswith('application/json'):
+				return JsonResponse({'ok': False, 'error': 'reportlab_unavailable', 'message': msg}, status=500)
+			return HttpResponse(msg, content_type='text/plain', status=500)
+		raise
+	except Exception as e:
+		msg = 'PDF generation failed (reportlab): ' + (str(e) or 'unknown error')
+		if request.headers.get('x-requested-with') == 'XMLHttpRequest' or (request.content_type or '').lower().startswith('application/json'):
+			return JsonResponse({'ok': False, 'error': 'reportlab_error', 'message': msg}, status=500)
+		return HttpResponse(msg, content_type='text/plain', status=500)
 
 
 @login_required
@@ -2684,41 +2993,6 @@ def generate_pdf(request, pk):
 		except Exception:
 			pass
 
-	# At this point we have `html_string` ready. Try to render PDF using
-	# WeasyPrint first; if unavailable, try wkhtmltopdf; otherwise return
-	# the HTML as a downloadable fallback so the Download button always works.
-	def _render_html_to_pdf_response(html_content, filename):
-		# Try WeasyPrint
-		try:
-			from weasyprint import HTML
-			html_obj = HTML(string=html_content, base_url=request.build_absolute_uri('/'))
-			pdf_bytes = html_obj.write_pdf()
-			resp = HttpResponse(pdf_bytes, content_type='application/pdf')
-			resp['Content-Disposition'] = f'attachment; filename="{filename}"'
-			return resp
-		except Exception:
-			# Continue to next backend
-			pass
-
-		# Try wkhtmltopdf if configured or available on PATH
-		try:
-			import shutil, subprocess
-			wk_cmd = getattr(settings, 'WKHTMLTOPDF_CMD', None) or shutil.which('wkhtmltopdf')
-			if wk_cmd:
-				proc = subprocess.Popen([wk_cmd, '--quiet', '-', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				out, err = proc.communicate(input=html_content.encode('utf-8'), timeout=30)
-				if proc.returncode == 0 and out:
-					resp = HttpResponse(out, content_type='application/pdf')
-					resp['Content-Disposition'] = f'attachment; filename="{filename}"'
-					return resp
-		except Exception:
-			pass
-
-		# Final fallback: HTML as downloadable file
-		resp = HttpResponse(html_content, content_type='text/html')
-		resp['Content-Disposition'] = 'attachment; filename="' + filename.rsplit('.',1)[0] + '.html"'
-		return resp
-
 	filename = f"invoice_{getattr(invoice, 'invoice_number', 'preview')}.pdf"
 	# Enforce server-side requirement: invoice must have a client email or the
 	# business must have an email before allowing PDF downloads. This mirrors the
@@ -2744,10 +3018,36 @@ def generate_pdf(request, pk):
 			return JsonResponse({'ok': False, 'error': 'missing_email', 'message': msg}, status=400)
 		return redirect('invoice_list')
 
-	resp = _render_html_to_pdf_response(html_string, filename)
+	try:
+		pdf_bytes = _render_invoice_pdf_reportlab(invoice, business)
+		resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+		resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+	except RuntimeError as e:
+		if str(e) == 'reportlab_unavailable':
+			msg = ('ReportLab is not available in the Python environment. Please install the `reportlab` package into your virtualenv (pip install reportlab) before generating PDFs.')
+			if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+				return JsonResponse({'ok': False, 'error': 'reportlab_unavailable', 'message': msg}, status=500)
+			messages.error(request, msg)
+			return HttpResponse(msg, content_type='text/plain', status=500)
+		raise
+	except Exception as e:
+		msg = 'PDF generation failed (reportlab): ' + str(e)
+		if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+			return JsonResponse({'ok': False, 'error': 'reportlab_error', 'message': msg}, status=500)
+		messages.error(request, msg)
+		return HttpResponse(msg, content_type='text/plain', status=500)
+
 	try:
 		# If we returned a PDF, record a pdf_downloaded activity
 		content_type = getattr(resp, 'content_type', resp.get('Content-Type', ''))
+		# Mark whether a PDF backend produced a PDF; front-end can inspect this header
+		try:
+			if content_type and 'application/pdf' in content_type:
+				resp['X-PDF-BACKEND-OK'] = '1'
+			else:
+				resp['X-PDF-BACKEND-OK'] = '0'
+		except Exception:
+			pass
 		if content_type and 'application/pdf' in content_type:
 			try:
 				related = getattr(invoice, 'invoice_number', str(getattr(invoice, 'pk', '')))
@@ -2931,17 +3231,23 @@ def invoice_preview_html(request, pk):
 
 @login_required
 def pdf_status(request):
-	"""Diagnostic endpoint: reports availability of WeasyPrint and wkhtmltopdf."""
-	status = {'weasyprint': {'available': False, 'version': None, 'error': None}, 'wkhtmltopdf': {'found': False, 'path': None, 'version': None, 'error': None}, 'settings_WKHTMLTOPDF_CMD': getattr(settings, 'WKHTMLTOPDF_CMD', None)}
+	"""Diagnostic endpoint: reports availability of ReportLab and wkhtmltopdf."""
+	status = {
+		'reportlab': {'available': False, 'version': None, 'error': None},
+		'wkhtmltopdf': {'found': False, 'path': None, 'version': None, 'error': None},
+		'settings_WKHTMLTOPDF_CMD': getattr(settings, 'WKHTMLTOPDF_CMD', None),
+	}
 	try:
-		import weasyprint
-		status['weasyprint']['available'] = True
+		import reportlab
+		status['reportlab']['available'] = True
 		try:
-			status['weasyprint']['version'] = getattr(weasyprint, '__version__', str(weasyprint))
+			status['reportlab']['version'] = getattr(reportlab, 'Version', str(reportlab))
 		except Exception:
-			status['weasyprint']['version'] = 'unknown'
+			status['reportlab']['version'] = 'unknown'
 	except Exception as e:
-		status['weasyprint']['error'] = str(e)
+		status['reportlab']['error'] = str(e)
+
+	# WeasyPrint intentionally removed; ReportLab is used for PDF generation.
 
 	try:
 		wk_cmd = shutil.which('wkhtmltopdf') or getattr(settings, 'WKHTMLTOPDF_CMD', None)

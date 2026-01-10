@@ -17,7 +17,7 @@ password: `adminadmin1234`
 - PostgreSQL
 - Bootstrap 5 (CSS)
 - Vanilla JavaScript (ad tracking helpers)
-- WeasyPrint (PDF generation)
+- ReportLab (PDF generation)
 
 ## Local Setup Instructions
 1. Clone repository
@@ -135,7 +135,7 @@ Below is the table schema used by the application. Use this as a reference for m
 - Create, edit, and soft-delete invoices
 - Line-item management with totals and tax calculations
 - Client management (create/edit/list)
-- PDF export / download via WeasyPrint
+ - PDF export / download via ReportLab
 - Invoice templates support
 - Activity logs and superadmin tools
 - Admin UI to manage users and superadmins
@@ -156,7 +156,7 @@ Add 5–7 screenshots
 (Place image files and reference them here when ready.)
 
 ## PDF Generation
-PDFs are generated using WeasyPrint (configured in `requirements.txt`). The HTML invoice templates are rendered server-side and passed to WeasyPrint to produce A4 PDFs.
+PDFs are generated using ReportLab (configured in `requirements.txt`). The server-side templates are used as a reference; ReportLab produces programmatic PDFs that include invoice details and images.
 
 ## Future Enhancements
 - More invoice templates

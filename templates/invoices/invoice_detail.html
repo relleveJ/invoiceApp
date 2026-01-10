@@ -6,13 +6,9 @@
   <div class="d-flex justify-content-between align-items-center">
     <h2>Invoice {{ invoice.invoice_number }}</h2>
     <div>
-    <a href="{% url 'generate_pdf' invoice.pk %}?template={{ template_choice|default:'1' }}" class="btn btn-outline-secondary">Download PDF</a>
       <a href="{% url 'invoice_list' %}" class="btn btn-secondary ms-2">Back to Invoice List</a>
-      {% if back_to_trash %}
-        <a href="{% url 'invoice_trash_list' %}" class="btn btn-secondary me-2">Back to Invoice Trash</a>
-      {% else %}
-        <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-primary ms-2">Edit</a>
-      {% endif %}
+      
+      {% include 'invoices/partials/invoice_actions.html' with invoice=invoice show_preview=False show_view=False %}
     </div>
   </div>
 

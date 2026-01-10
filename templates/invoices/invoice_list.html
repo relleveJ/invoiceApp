@@ -68,8 +68,7 @@
             <td data-label="Total">{{ invoice.total_amount }}</td>
             <td data-label="Status" class="hide-mobile">{{ invoice.get_status_display }}</td>
             <td data-label="Actions" class="actions">
-              <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-outline-primary">View</a>
-              <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-sm btn-outline-secondary ms-1">Edit</a>
+              {% include 'invoices/partials/invoice_actions.html' with invoice=invoice %}
             </td>
           </tr>
           {% empty %}

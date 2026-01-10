@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies required for Pillow, WeasyPrint, and psycopg2
+# Install system dependencies required for Pillow, psycopg2, and optional wkhtmltopdf
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpangocairo-1.0-0 \
     libcairo2 \
     shared-mime-info \
+    wkhtmltopdf \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -49,6 +50,8 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
+# Make wkhtmltopdf command path available to the Django settings fallback
+ENV WKHTMLTOPDF_CMD=/usr/bin/wkhtmltopdf
 # Use a shell CMD so the $PORT env var (set by Railway) is expanded. If PORT
 # is not set, default to 8000.
 CMD sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000}"

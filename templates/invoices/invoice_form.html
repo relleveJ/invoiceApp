@@ -18,6 +18,9 @@
 <div class="row invoice-layout">
         <div class="col-md-9 invoice-main">
         <h1>{{ action }} Invoice</h1>
+        <div class="mb-3">
+            {# Action buttons moved next to Save for Create; hide header actions to avoid duplicates #}
+        </div>
         
                 <form method="post" id="invoice-form" class="invoice-form" enctype="multipart/form-data" action="{% if action == 'Create' %}{% url 'invoice_create' %}{% else %}{% if form.instance.pk %}{% url 'invoice_edit' form.instance.pk %}{% else %}{% url 'invoice_create' %}{% endif %}{% endif %}">
                         {% csrf_token %}
@@ -47,44 +50,78 @@
                             #items-table th.total-header, #items-table td.total-cell { text-align: right; padding-right: .6rem; }
                             #items-table td.total-cell .line-total { display:block; width:100%; text-align:right; }
 
+                            /* Action buttons for items: make them stack and expand on small screens/tablets */
+                            .invoice-items-actions .btn { min-width: 0; }
+                            @media(max-width:991px){
+                                .invoice-items-actions { flex-direction: column !important; }
+                                .invoice-items-actions .btn { width:100%; }
+                            }
+
                             /* Header checkbox positioned to the right */
                             #items-table thead th { vertical-align: middle; text-align:left; }
                             th.unit-price-header { text-align: right; }
                             th.total-header { text-align: right; padding-right:8px; }
-                            /* Position Delete label left and checkbox anchored to far right (flex layout) */
-                            th.delete-header { display:flex; align-items:center; justify-content:space-between; gap:2px; padding-right:25px; min-width:72px; }
-                            th.delete-header span { display:inline-block; font-weight:600; }
-                            #items-table thead th .select-all-checkbox { position:static; transform: scale(1.12); margin:0; }
+                                     /* Position Delete label left and checkbox anchored to far right (flex layout)
+                                         Desktop: label on left, header checkbox aligned to right within header cell.
+                                         Mobile: checkbox floats to the right of the stacked card. */
+                                     th.delete-header { display:flex; align-items:center; gap:8px; padding:0 8px 0 0; min-width:72px; }
+                                     th.delete-header span { display:inline-block; font-weight:600; }
+                                    /* Keep header label on one line on desktop (prevent vertical stacking) */
+                                    th.delete-header span { display:inline-block; font-weight:600; white-space:nowrap; }
+                                     /* Make the select-all checkbox sit to the far right in header */
+                                     #items-table thead th .select-all-checkbox { margin-left:auto; transform: scale(1.12); }
 
-                            /* Ensure Delete column can shrink on small screens */
-                            #items-table td.delete-cell, #items-table th.delete-header { width:8%; min-width:0; }
+                                     /* Ensure Delete column can shrink on small screens but stays usable on desktop */
+                                     #items-table td.delete-cell, #items-table th.delete-header { width:8%; min-width:56px; max-width:120px; }
 
                             /* Ensure bootstrap form-controls inside table cells don't add extra margins */
                             #items-table td .form-control { margin:0; height:calc(1.5em + .5rem + 2px); padding:.25rem .5rem; }
 
                             /* Center delete checkbox vertically/horizontally in body cells */
-                            #items-table td.delete-cell { text-align:center; }
-                            #items-table td.delete-cell input[type="checkbox"] { transform:scale(1.12); margin:auto; display:block; }
+                            #items-table td.delete-cell { text-align:center; vertical-align:middle; }
+                            #items-table td.delete-cell input[type="checkbox"] { transform:scale(1.12); margin:0 auto; display:inline-block; }
 
                             /* Ensure Unit Price and Total body cells are right aligned */
                             #items-table td:nth-child(3) { text-align:right; }
                             #items-table td.total-cell { text-align:right; }
 
-                            /* Small screens: reduce input width to avoid wrapping and provide stacked card view */
-                            @media(max-width:767px){
-                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { max-width:80px; width:100%; }
-                            }
-
-                            /* Mobile stacked view for invoice items: convert rows into card-like blocks */
-                            @media(max-width:767px){
+                            /* Mobile/tablet stacked view for invoice items: convert rows into card-like blocks and ensure readable labels/inputs */
+                            @media(max-width:991px){
+                                /* hide full table header and convert rows to stacked cards */
                                 #items-table thead { display:none; }
                                 #items-table, #items-table tbody, #items-table tr, #items-table td { display:block; width:100%; }
-                                #items-table tr { margin-bottom:.7rem; border:1px solid #eef0f2; padding:.6rem; border-radius:6px; }
-                                #items-table td { padding:.35rem 0; }
-                                #items-table td[data-label]::before { content: attr(data-label) ": "; font-weight:600; color:#6c757d; display:inline-block; width:40%; }
-                                #items-table td.delete-cell { text-align:right; }
-                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { max-width:120px; width:100%; margin-left:auto; text-align:right; }
-                                #items-table .line-total { display:block; text-align:right; font-weight:600; }
+                                #items-table tr { margin-bottom:.7rem; border:1px solid #eef0f2; padding:12px; border-radius:6px; position:relative; background:#fff; }
+                                #items-table td { padding:.35rem 0; display:block; width:100%; }
+                                #items-table td[data-label]::before { content: attr(data-label) ": "; display:block; font-weight:600; color:#495057; margin-bottom:8px; font-size:13px; }
+
+                                /* Make description larger and full-width with clean spacing */
+                                #items-table td:nth-child(1) input, #items-table td:nth-child(1) textarea, #items-table td:nth-child(1) .form-control {
+                                    display:block; width:100%; box-sizing:border-box; padding:.5rem .6rem; border-radius:6px; min-height:44px; font-size:14px; background:#fff; border:1px solid #dfe3e6; margin:0;
+                                }
+
+                                /* Ensure other inputs inside cards are visually consistent */
+                                #items-table td:nth-child(2) input, #items-table td:nth-child(3) input, #items-table td.delete-cell input {
+                                    display:block; width:100%; box-sizing:border-box; padding:.35rem .5rem; border-radius:6px; border:1px solid #e1e6e9; background:#fff; margin:0;
+                                }
+
+                                /* Give a bit more breathing room for the card content so labels don't crowd inputs */
+                                #items-table tr { padding:12px 12px 12px 12px; }
+
+                                /* Place quantity and unit price side-by-side on wider phones, stacked on narrow */
+                                #items-table td:nth-child(2), #items-table td:nth-child(3) { display:inline-block; vertical-align:top; width:48%; box-sizing:border-box; }
+                                #items-table td:nth-child(2) { padding-right:4%; }
+                                #items-table td:nth-child(3) { padding-left:4%; }
+                                #items-table input[name$='-quantity'], #items-table input[name$='-unit_price'] { width:100%; }
+
+                                /* Total stays right aligned */
+                                #items-table td.total-cell, #items-table .line-total { text-align:right; }
+
+                                /* Position delete checkbox at top-right of the card without overlapping content */
+                                #items-table td.delete-cell { position:absolute; top:10px; right:12px; width:auto; padding:0; text-align:right; }
+                                #items-table td.delete-cell input[type="checkbox"] { transform:scale(1.12); margin:0; }
+
+                                /* Ensure cards have enough right padding so absolute checkbox doesn't overlap text */
+                                #items-table tr { padding-right:56px; }
                             }
 
                             /* Row padding consistency */
@@ -216,7 +253,7 @@
                                 <th style="width: 15%">Quantity</th>
                                 <th class="unit-price-header" style="width: 15%">Unit Price</th>
                                 <th class="total-header" style="width: 15%">Total</th>
-                                        <th class="delete-header" style="width: 15%"><span>Delete</span>
+                                        <th class="delete-header" style="width: 5%"><span>Delete</span>
                                             <input type="checkbox" id="select-all-delete" class="select-all-checkbox" title="Select all for deletion" aria-label="Select all for deletion" />
                                         </th>
                                     </tr>
@@ -247,12 +284,14 @@
                         </tbody>
                     </table>
                     
-                    <button type="button" class="btn btn-secondary" onclick="addItem()">
-                        <i class="fas fa-plus me-2"></i>Add Item
-                    </button>
-                    <button type="button" id="delete-selected-btn" class="btn btn-danger ms-2" title="Delete selected items"> 
-                        <i class="fas fa-trash-alt me-2"></i>Delete Selected
-                    </button>
+                    <div class="invoice-items-actions d-flex flex-column flex-sm-row gap-2">
+                        <button type="button" class="btn btn-secondary" onclick="addItem()">
+                            <i class="fas fa-plus me-2"></i>Add Item
+                        </button>
+                        <button type="button" id="delete-selected-btn" class="btn btn-danger" title="Delete selected items"> 
+                            <i class="fas fa-trash-alt me-2"></i>Delete Selected
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -299,14 +338,8 @@
 
             <!-- Business Profile photo input moved into Invoice Details (see above) -->
             
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Invoice
-                </button>
-                <button type="button" class="btn btn-outline-secondary" id="live-pdf-preview-btn">DOWNLOAD PDF</button>
-                <!-- Download button removed from page; use modal Download instead -->
-                <a href="{% url 'invoice_list' %}" class="btn btn-secondary ms-auto">Cancel</a>
-            </div>
+            {# Hidden submit button so we can place the visible Save button outside the <form> #}
+            <button type="submit" id="hidden-submit-btn" style="display:none"></button>
         </form>
         </div>
     
@@ -323,39 +356,7 @@
                                 <strong id="preview-inv-number">{{ form.invoice_number.value|default:'' }}</strong>
                                 <div><small id="preview-timestamp" class="text-muted"></small></div>
                             </div>
-                            <div id="template-selector" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                {% if invoice_templates %}
-                                    {% for tpl in invoice_templates %}
-                                        <button type="button" class="btn btn-sm btn-outline-secondary template-btn" data-template="{{ tpl.template_id }}">{{ tpl.template_name }}</button>
-                                    {% endfor %}
-                                {% else %}
-                                    <button type="button" class="btn btn-sm btn-outline-primary template-btn" data-template="1">Template 1</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary template-btn" data-template="2">Template 2</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary template-btn" data-template="3">Template 3</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary template-btn" data-template="4">Template 4</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary template-btn" data-template="5">Template 5</button>
-                                {% endif %}
-
-                                <!-- Templates dropdown button (keeps sidebar style) -->
-                                <div class="btn-group ms-2">
-                                    <button id="templates-dropdown-toggle" type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Select invoice template">Templates</button>
-                                    <ul class="dropdown-menu dropdown-menu-end" id="templates-dropdown-menu">
-                                        {% if invoice_templates %}
-                                            {% for tpl in invoice_templates %}
-                                                <li><a class="dropdown-item template-dropdown-item" href="#" data-template="{{ tpl.template_id }}">{{ tpl.template_name }}</a></li>
-                                            {% endfor %}
-                                        {% else %}
-                                            <li><a class="dropdown-item template-dropdown-item" href="#" data-template="1">Template 1</a></li>
-                                            <li><a class="dropdown-item template-dropdown-item" href="#" data-template="2">Template 2</a></li>
-                                            <li><a class="dropdown-item template-dropdown-item" href="#" data-template="3">Template 3</a></li>
-                                            <li><a class="dropdown-item template-dropdown-item" href="#" data-template="4">Template 4</a></li>
-                                            <li><a class="dropdown-item template-dropdown-item" href="#" data-template="5">Template 5</a></li>
-                                        {% endif %}
-                                    </ul>
-                                </div>
-
-                                <button type="button" id="toggle-right-preview-btn" class="btn btn-sm btn-outline-primary ms-2" title="Open live preview">Preview</button>
-                            </div>
+                            <!-- Template selector removed per request -->
                         </div>
                         <div class="mt-2 d-flex align-items-center">
                             <img id="preview-business-logo" src="" alt="Business logo preview" style="max-width:140px; max-height:80px; display:none; border-radius:4px; margin-right:12px;" />
@@ -372,6 +373,7 @@
                             <div><strong>Total: <span id="preview-total">$0.00</span></strong></div>
                         </div>
                         <div id="invoice-preview-mini"></div>
+                        <div id="invoice-preview-footer" class="invoice-preview-footer mt-2" style="font-size:12px;color:#666;text-align:center"></div>
                         <style>
                             /* Sidebar preview iframe: constrained and responsive */
                             #invoice-preview-iframe { width: 100%; height: 360px; max-height: 60vh; border: 1px solid #e6e6e6; display: none; transform-origin: 0 0; }
@@ -395,6 +397,31 @@
                 </div>
         </div>
 
+        <style>
+            /* Sidebar action card: make included action buttons full-width on small screens */
+            .sidebar-action-card .invoice-actions { display:flex; gap:.5rem; }
+            @media(max-width:767px){
+                .sidebar-action-card .invoice-actions { display:block !important; }
+                .sidebar-action-card .invoice-actions .btn { display:block !important; width:100% !important; margin-bottom:.375rem !important; }
+                .sidebar-action-card .invoice-actions .btn:last-child { margin-bottom:0 !important; }
+            }
+        </style>
+        
+        <div class="card mt-3 mb-3 sidebar-action-card">
+            <div class="card-body">
+                <h6>Actions</h6>
+                <div class="d-grid gap-2">
+                    <button type="button" id="sidebar-save-btn" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Invoice
+                    </button>
+                    <div class="invoice-actions-wrapper">
+                        {% include 'invoices/partials/invoice_actions.html' with invoice=invoice %}
+                    </div>
+                    <a href="{% url 'invoice_list' %}" id="sidebar-cancel-btn" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+
         {% load static %}
         {% include 'invoices/ads/ad_fragment.html' with ad_id='ad-sidebar-001' placement='sidebar_invoice_creation' target_url='https://www.score.org/resource/invoicing' title='Pro Tips — Improve invoice turnaround' description='Learn simple techniques to create professional invoices that get paid faster.' logo_url='/static/img/smallbiz-guide.svg' user_context='creating_invoice' invoice_id=None %}
         <script src="{% static 'js/ad_tracker.js' %}"></script>
@@ -415,7 +442,7 @@
 </div>
 
 <!-- Preview Modal (used for live preview and HTML/PDF display) -->
-<div class="modal fade" id="invoice-preview-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="invoice-preview-modal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -432,8 +459,8 @@
                                             </style>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="modal-download-btn">Download PDF</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <!-- Download removed -->
+                <button type="button" class="btn btn-outline-secondary ms-2" id="modal-cancel-btn" data-bs-dismiss="modal">Cancel</button>
             </div>
         </div>
     </div>
@@ -451,6 +478,27 @@
     function getCsrf() {
         const t = document.querySelector('input[name=csrfmiddlewaretoken]');
         return t ? t.value : '';
+    }
+
+    // Show a clear alert in the preview modal when no PDF backend is available
+    function showPdfBackendAlert(msg) {
+        try {
+            const modalBody = document.getElementById('invoice-preview-modal-body');
+            const modalEl = document.getElementById('invoice-preview-modal');
+            const container = modalBody || document.body;
+            // remove existing alert if present
+            const old = container.querySelector('.pdf-backend-alert');
+            if (old) old.remove();
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-warning pdf-backend-alert';
+            alert.style.marginBottom = '12px';
+                alert.innerHTML = '<strong>PDF backend unavailable:</strong> ' + (msg || 'Server could not render a PDF. Ensure the `reportlab` package is installed in the Python environment or run the app in Docker.') +
+                ' <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="(function(e){try{this.closest(\'.pdf-backend-alert\').remove();}catch(_){}}).call(this);">Dismiss</button>';
+            if (modalBody) modalBody.insertBefore(alert, modalBody.firstChild);
+            else document.body.insertBefore(alert, document.body.firstChild);
+            // ensure modal visible
+            if (modalEl && window.bootstrap) { try { new bootstrap.Modal(modalEl).show(); } catch(e){} }
+        } catch (e) { console.warn('showPdfBackendAlert failed', e); }
     }
 
     // Expose page action globally so preview/download handlers can read it
@@ -529,7 +577,7 @@
     }
     
     // Add event listeners
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         document.querySelectorAll('.item-quantity, .item-price').forEach(input => {
             input.addEventListener('input', calculateTotals);
         });
@@ -573,49 +621,7 @@
         // Page action (Create vs Edit) from server
         const PAGE_ACTION = "{{ action|escapejs }}";
 
-        // Template selection: default to server-provided value or 1
-        window.SELECTED_TEMPLATE = "{{ invoice.template_choice|default:'1' }}" || '1';
-        try {
-            const tplBtns = document.querySelectorAll('.template-btn');
-            tplBtns.forEach(b => {
-                b.addEventListener('click', function(){
-                    window.SELECTED_TEMPLATE = this.dataset.template || '1';
-                    // update active styles
-                    tplBtns.forEach(x => x.classList.remove('btn-primary'));
-                    tplBtns.forEach(x => x.classList.add('btn-outline-secondary'));
-                    this.classList.remove('btn-outline-secondary');
-                    this.classList.add('btn-primary');
-                    // update hidden form value
-                    try { document.getElementById('id_template').value = window.SELECTED_TEMPLATE; } catch(e) {}
-                    // trigger preview refresh: schedule server fetch and if right-drawer open render immediately
-                    try { scheduleSidebarUpdate(100); } catch(e) {}
-                    try { if (document.getElementById('right-preview-drawer') && document.getElementById('right-preview-drawer').classList.contains('open')) { ensureLatestPreviewAndRender(); } } catch(e) {}
-                });
-            });
-            // mark the saved template as active (or fallback to first button)
-            const activeBtn = document.querySelector('.template-btn[data-template="' + (window.SELECTED_TEMPLATE || '1') + '"]') || tplBtns[0];
-            if (activeBtn) {
-                tplBtns.forEach(x => x.classList.remove('btn-primary'));
-                tplBtns.forEach(x => x.classList.add('btn-outline-secondary'));
-                activeBtn.classList.remove('btn-outline-secondary');
-                activeBtn.classList.add('btn-primary');
-                try { document.getElementById('id_template').value = window.SELECTED_TEMPLATE; } catch(e) {}
-            }
-        } catch (e) {}
-
-        // attach toggle handler for right-preview drawer button
-        try {
-            const toggleBtn = document.getElementById('toggle-right-preview-btn');
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function(ev){
-                    try {
-                        const d = document.getElementById('right-preview-drawer');
-                        if (d && d.classList.contains('open')) { closeRightPreview(); }
-                        else { openRightPreview(); }
-                    } catch(err) { console.warn('toggle-right-preview-btn click failed', err); }
-                });
-            }
-        } catch(e) { /* ignore */ }
+        // Template selection and right-preview toggle removed per request
 
         // Business photo upload removed from invoice flow; edits should be made
         // via the Business Profile page. No client-side file handling here.
@@ -704,8 +710,8 @@
                 if (cAddr) data.client.address = cAddr;
             } catch (e) {}
             data.items = [];
-            // include currently selected template so preview/pdf endpoints apply same style
-            data.template = window.SELECTED_TEMPLATE || '1';
+            // Template selection removed; use default template '1'
+            data.template = '1';
 
             // include business snapshot fields (editable) so preview/pdf reflects current inputs
             try {
@@ -831,6 +837,9 @@
                 html += '<div style="font-size:12px;color:#666">'+esc(d.business.address || '') + (d.business.email ? '<br/>'+esc(d.business.email) : '') + (d.business.phone ? '<br/>'+esc(d.business.phone) : '') +'</div>';
             }
             html += '</div>';
+
+            
+
             html += '<div style="text-align:right; width:40%">';
             html += '<div style="font-weight:700; font-size:1.05rem">INVOICE</div>';
             html += '<div style="font-size:12px">Invoice #: <span class="preview-invoice-number">'+esc(d.invoice_number)+'</span></div>';
@@ -872,7 +881,25 @@
             html += '<div style="font-weight:700; margin-top:6px">Total: '+esc(d.currency || '')+' '+Number(d.total_amount||0).toFixed(2)+'</div>';
             html += '</div>';
 
+            // payment terms and notes (render below totals)
+            if (d.payment_terms || d.notes) {
+                html += '<div style="margin-top:12px; font-size:13px; color:#333">';
+                if (d.payment_terms) html += '<div><strong>Payment Terms:</strong> '+esc(d.payment_terms)+'</div>';
+                if (d.notes) html += '<div style="margin-top:6px"><strong>Notes:</strong> '+esc(d.notes)+'</div>';
+                html += '</div>';
+            }
+
             container.innerHTML = html;
+            // populate footer area below the preview
+            try {
+                const footerEl = document.getElementById('invoice-preview-footer');
+                if (footerEl) {
+                    let fh = '';
+                    fh += '<div>Thank you for your business!</div>';
+                    fh += '<div style="margin-top:6px">This is a computer-generated invoice. For questions, contact ' + (d.business && d.business.email ? esc(d.business.email) : '') + '</div>';
+                    footerEl.innerHTML = fh;
+                }
+            } catch(e) { console.warn('renderMiniPreview footer update failed', e); }
         } catch (e) { console.warn('renderMiniPreview error', e); }
     }
 
@@ -902,9 +929,9 @@
 
                 const contentType = resp.headers.get('Content-Type') || '';
                 if (contentType.indexOf('application/pdf') !== -1) {
-                    const blob = await resp.blob();
-                    const filename = (data.invoice_number || 'invoice') + '.pdf';
-                    showPreviewModalWithPdf(blob, filename);
+                        const blob = await resp.blob();
+                        const filename = (data.invoice_number || 'invoice') + '.pdf';
+                        showPreviewModalWithPdf(blob, filename, data);
                 } else {
                     const text = await resp.text();
                     console.log('livePdfPreview: received HTML, rendering in modal');
@@ -926,16 +953,7 @@
             console.log('previewOrDownload: clicked');
             try {
                 const data = await serializePreviewData();
-                // Try to download a PDF in the background (servers that support
-                // rendering preview-to-pdf will return a PDF blob). If successful,
-                // the user will receive a download without changing form state.
-                const ok = await downloadPdfFromData(data);
-                if (ok) {
-                    console.log('PDF downloaded via XHR');
-                    return;
-                }
-
-                // Otherwise show the preview modal (HTML or PDF) so the user can
+                // Show the preview modal (HTML or PDF) so the user can
                 // inspect and decide whether to save. This avoids creating the
                 // invoice implicitly during preview on the Create page.
                 try {
@@ -977,7 +995,7 @@
 
                     const form = document.createElement('form');
                     form.method = 'POST';
-                    form.action = "{% url 'invoice_live_preview' %}?format=pdf";
+                    form.action = "{% url 'invoice_live_preview' %}";
                     form.target = iframeName;
 
                     // copy inputs from original form into hidden inputs on the new form
@@ -1023,158 +1041,20 @@
             });
         }
 
-        // Download PDF handler: similar request but forces a file download if PDF returned
-        async function downloadPdf() {
-            const btn = document.getElementById('download-pdf-btn');
-            if (btn) btn.disabled = true;
-
-            try {
-                // Use the same serialization as the live preview so business snapshot and photo are included
-                const data = await serializePreviewData();
-                const ok = await downloadPdfFromData(data);
-                if (ok) return;
-
-                // if downloadPdfFromData didn't return a PDF, fall back to live preview in modal
-                await livePdfPreview(data);
-            } catch (err) {
-                alert('Download failed: ' + err);
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        }
-
-    // helper: download PDF by posting preview data and forcing a download (used by modal)
-    async function downloadPdfFromData(data) {
-        const csrftoken = getCsrf();
-        console.log('downloadPdfFromData: posting preview data to server');
-        // ensure template is present
-        if (!data.template) data.template = window.SELECTED_TEMPLATE || '1';
-        try {
-            const resp = await fetch('{% url "invoice_live_preview" %}?format=pdf', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken,
-                    'Accept': 'application/pdf'
-                },
-                body: JSON.stringify(data)
-            });
-            console.log('downloadPdfFromData: response status', resp.status, 'content-type', resp.headers.get('Content-Type'));
-            if (!resp.ok) return null;
-            const ct = resp.headers.get('Content-Type') || '';
-            if (ct.indexOf('application/pdf') !== -1) {
-                const blob = await resp.blob();
-                const filename = (data.invoice_number || 'invoice') + '.pdf';
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
-                URL.revokeObjectURL(url);
-                return true;
-            }
-            return null;
-        } catch (e) {
-            console.warn('downloadPdfFromData: error', e);
-            return null;
-        }
-    }
-
-    // Submit the current invoice form via Fetch (multipart FormData) and open the
-    // generated PDF for the newly created invoice using the same URL the View
-    // page uses (/invoices/<pk>/pdf/). Expects the server to return JSON {ok:true, pk}.
-    async function submitFormAndOpenPdf() {
-        const form = document.getElementById('invoice-form');
-        if (!form) throw new Error('Invoice form not found');
-        const btn = document.getElementById('live-pdf-preview-btn');
-        if (btn) btn.disabled = true;
-        try {
-            const fd = new FormData(form);
-            fd.set('download_after_save', '1');
-            // include CSRF automatically with cookie; also set header for server detection
-            const resp = await fetch(form.action, {
-                method: 'POST',
-                body: fd,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin'
-            });
-            if (!resp.ok) {
-                const text = await resp.text();
-                // show server response (likely form with errors) in modal so user can inspect
-                try { showPreviewModalWithHtml(text, null); } catch(e){}
-                throw new Error('Save failed: ' + resp.status);
-            }
-
-            const ctype = (resp.headers.get('Content-Type') || '').toLowerCase();
-            let pk = null;
-            if (ctype.indexOf('application/json') !== -1) {
-                const j = await resp.json();
-                if (!j || !j.ok || !j.pk) {
-                    // if server indicated failure via JSON, show message
-                    try { alert('Save failed.'); } catch(e){}
-                    return null;
-                }
-                pk = j.pk;
-            } else {
-                // Server returned HTML (likely validation errors). If it contains
-                // a rendered `#invoice-form`, replace the current form in-place
-                // so field-level errors appear inline. Otherwise show HTML in modal.
-                const txt = await resp.text();
-                try {
-                    const hasForm = /<form[^>]+id=(['\"])invoice-form\1/i.test(txt) || /id=(['\"])invoice-form\1/i.test(txt);
-                    if (hasForm) {
-                        replaceInvoiceFormWithHtml(txt);
-                        // detect duplicate invoice hints and show friendly alert
-                        if (txt.toLowerCase().indexOf('invoice number already exists') !== -1 || txt.toLowerCase().indexOf('already exists') !== -1) {
-                            try { alert('Invoice number already exists. Please choose another invoice number.'); } catch(e){}
-                        }
-                        return null;
-                    } else {
-                        try { showPreviewModalWithHtml(txt, null); } catch(e){}
-                        return null;
-                    }
-                } catch (e) {
-                    console.warn('submitFormAndOpenPdf: failed to replace form from server HTML', e);
-                    try { showPreviewModalWithHtml(txt, null); } catch(_){ }
-                    return null;
-                }
-            }
-            // After saving, request the canonical PDF using wkhtmltopdf and force a download.
-            const url = `/invoices/${pk}/pdf/?format=pdf&backend=wkhtmltopdf&template=${encodeURIComponent(window.SELECTED_TEMPLATE||'1')}`;
-            try {
-                const r = await fetch(url, { credentials: 'same-origin' });
-                if (r && r.ok) {
-                    const ct = (r.headers.get('Content-Type') || '').toLowerCase();
-                    if (ct.indexOf('pdf') !== -1) {
-                        const blob = await r.blob();
-                        const filename = (_lastPreviewData && _lastPreviewData.filename) || (document.getElementById('id_invoice_number') && document.getElementById('id_invoice_number').value) || ('invoice-' + pk);
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = blobUrl; a.download = filename + '.pdf'; document.body.appendChild(a); a.click(); a.remove();
-                        setTimeout(()=>{ try{ URL.revokeObjectURL(blobUrl); }catch(e){} },1500);
-                        // After download starts, redirect to invoice list so user returns to index
-                        try {
-                            setTimeout(function(){ window.location = window.INVOICE_LIST_URL; }, 700);
-                        } catch (e) { console.warn('redirect after download failed', e); }
-                    } else {
-                        // Non-PDF returned; show result in preview modal instead of saving HTML as PDF
-                        const txt = await r.text();
-                        try { showPreviewModalWithHtml(txt, _lastPreviewData); } catch(e){ console.warn('showPreviewModalWithHtml failed', e); }
-                    }
-                } else {
-                    // show server response in modal if available
-                    try { const txt = await r.text(); showPreviewModalWithHtml(txt, _lastPreviewData); } catch(e){ window.open(`/invoices/${pk}/pdf/?template=${encodeURIComponent(window.SELECTED_TEMPLATE||'1')}`, '_blank'); }
-                }
-            } catch (e) {
-                console.warn('submitFormAndOpenPdf: fetch PDF failed, opening in new tab', e);
-                window.open(`/invoices/${pk}/pdf/?template=${encodeURIComponent(window.SELECTED_TEMPLATE||'1')}`, '_blank');
-            }
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    }
+                    // Removed download-on-save functionality per request: PDFs are no longer generated from the client.
 
     // Fetch server-rendered HTML preview for the selected template and insert into iframe
     let _sidebarPreviewTimer = null;
+    // Debounced scheduler to avoid spamming server with preview requests
+    function scheduleSidebarUpdate(delay) {
+        try {
+            if (typeof delay === 'undefined' || delay === null) delay = 300;
+            if (_sidebarPreviewTimer) clearTimeout(_sidebarPreviewTimer);
+            _sidebarPreviewTimer = setTimeout(function(){
+                try { updateSidebarPreview(); } catch(e){ console.warn('scheduled updateSidebarPreview failed', e); }
+            }, delay);
+        } catch (e) { console.warn('scheduleSidebarUpdate failed', e); }
+    }
     async function updateSidebarPreview() {
         try {
             const iframe = document.getElementById('invoice-preview-iframe');
@@ -1221,6 +1101,27 @@
         }
     }
 
+    // Wire generic form input/change events to trigger sidebar preview updates
+    try {
+        const invForm = document.getElementById('invoice-form');
+        if (invForm) {
+            invForm.addEventListener('input', function(e){
+                // avoid reacting to irrelevant inputs like hidden fields
+                const t = e.target || e.srcElement;
+                if (!t) return;
+                // small heuristic: ignore typing into large textareas for performance
+                scheduleSidebarUpdate(350);
+            });
+            invForm.addEventListener('change', function(e){ scheduleSidebarUpdate(250); });
+        }
+    } catch(e){ console.warn('wiring invoice-form preview listeners failed', e); }
+
+    // Also ensure client/business selects trigger an update immediately
+    try {
+        const clientSel = document.getElementById('id_client'); if (clientSel) clientSel.addEventListener('change', function(){ scheduleSidebarUpdate(150); });
+        const bizSel = document.getElementById('id_business_select'); if (bizSel) bizSel.addEventListener('change', function(){ scheduleSidebarUpdate(150); });
+    } catch(e){ }
+
     // Modal helpers
     let _lastPreviewData = null;
     let _lastPreviewHtml = null;
@@ -1265,9 +1166,9 @@
             const delBtn = document.getElementById('delete-selected-btn');
             if (delBtn) delBtn.onclick = function(){ if (!confirm('Delete selected items?')) return; try { deleteSelectedItems(); } catch (e) { console.warn('deleteSelectedItems failed', e); } };
 
-            // ensure modal download button still wired (it is global)
+            // hide modal download button (download feature removed)
             const modalDl = document.getElementById('modal-download-btn');
-            if (modalDl) modalDl.onclick = async function(){ try { if ((window.PAGE_ACTION || '').toLowerCase() === 'create') { await submitFormAndOpenPdf(); return; } } catch(e){ console.warn(e); } await modalDownloadHandler(); };
+            if (modalDl) modalDl.style.display = 'none';
 
             // re-populate preview client/business details if selects exist
             const selClient = document.getElementById('id_client'); if (selClient) updatePreviewClientById(selClient.value || '');
@@ -1279,7 +1180,7 @@
             return false;
         }
     }
-    function showPreviewModalWithPdf(blob, filename) {
+    function showPreviewModalWithPdf(blob, filename, data) {
         const body = document.getElementById('invoice-preview-modal-body');
         if (!body) {
             // fallback: no modal available — trigger a direct download without opening a new tab
@@ -1297,50 +1198,27 @@
         iframe.style.height = '75vh';
         iframe.setAttribute('aria-label', 'Invoice PDF preview');
         body.appendChild(iframe);
-        // Add a transparent overlay to block direct clicks inside the iframe
-        // This prevents any element inside the preview from opening new tabs.
+        // display payment terms and notes beneath the PDF preview if provided
         try {
-            // ensure container is positioned so overlay can be absolute
-            body.style.position = body.style.position || 'relative';
-            // remove any existing blocker
-            const existing = document.getElementById('preview-iframe-blocker');
-            if (existing) existing.remove();
-            const blocker = document.createElement('div');
-            blocker.id = 'preview-iframe-blocker';
-            blocker.style.position = 'absolute';
-            blocker.style.left = '0';
-            blocker.style.top = '0';
-            blocker.style.width = '100%';
-            blocker.style.height = '75vh';
-            blocker.style.zIndex = '1045';
-            blocker.style.background = 'transparent';
-            blocker.title = 'Preview interaction blocked to prevent new tabs. Click "Enable interaction" to allow.';
-            // small control to allow temporary interaction if user needs it
-            const control = document.createElement('button');
-            control.type = 'button';
-            control.textContent = 'Enable interaction';
-            control.style.position = 'absolute';
-            control.style.right = '12px';
-            control.style.top = '12px';
-            control.className = 'btn btn-sm btn-outline-secondary';
-            control.addEventListener('click', function(ev){
-                ev.preventDefault(); ev.stopPropagation();
-                // remove blocker to allow interaction (still sandboxed, popups blocked)
-                try { blocker.remove(); } catch(e){}
-            });
-            blocker.appendChild(control);
-            // clicking anywhere on blocker will trigger modal download handler if it looks like a download intent
-            blocker.addEventListener('click', function(ev){
-                ev.preventDefault(); ev.stopPropagation();
-                modalDownloadHandler();
-            });
-            body.appendChild(blocker);
-        } catch (e) { console.warn('failed to add iframe interaction blocker', e); }
+            if (data && (data.payment_terms || data.notes)) {
+                const meta = document.createElement('div');
+                meta.style.marginTop = '8px'; meta.style.fontSize = '13px'; meta.style.color = '#333';
+                if (data.payment_terms) {
+                    const p = document.createElement('div'); p.innerHTML = '<strong>Payment Terms:</strong> ' + (data.payment_terms || ''); meta.appendChild(p);
+                }
+                if (data.notes) {
+                    const n = document.createElement('div'); n.style.marginTop = '6px'; n.innerHTML = '<strong>Notes:</strong> ' + (data.notes || ''); meta.appendChild(n);
+                }
+                body.appendChild(meta);
+            }
+        } catch(e) { console.warn('adding payment terms/notes to PDF preview failed', e); }
+        // Note: removed iframe interaction blocker to avoid blocking the UI.
+        // If iframe interactions need to be restricted, implement a non-blocking control instead.
         // cleanup previous blob URL if any
         if (_lastPreviewData && _lastPreviewData.blobUrl) {
             try { URL.revokeObjectURL(_lastPreviewData.blobUrl); } catch(e){}
         }
-        _lastPreviewData = { blobUrl: url, filename };
+        _lastPreviewData = { blobUrl: url, filename, data: data || null };
         // add floating download button inside modal (outside iframe so it's always visible)
         addOrReplaceFloatingDownload(body, function() {
             const a = document.createElement('a');
@@ -1372,6 +1250,9 @@
             }
             return;
         }
+        // blur any currently focused element to avoid aria-hidden focus issues
+        try { if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch(e) {}
+
         // render HTML inside an isolated iframe so full-page HTML doesn't break modal layout
         body.innerHTML = '';
         const iframe = document.createElement('iframe');
@@ -1420,6 +1301,24 @@
         }
 
         try {
+            // If preview data contains payment_terms/notes/footer, inject them into the
+            // original HTML so they appear inside the iframe (not only below it).
+            if (data) {
+                var injected = '';
+                if (data.payment_terms) injected += '<div style="margin-top:24px; font-size:13px"><strong>Payment Terms:</strong><div>' + (data.payment_terms||'') + '</div></div>';
+                if (data.notes) injected += '<div style="margin-top:12px; font-size:13px"><strong>Notes:</strong><div>' + (data.notes||'') + '</div></div>';
+                injected += '<div style="margin-top:18px; border-top:1px solid #e6e6e6; padding-top:8px; font-size:12px; color:#666; text-align:center">';
+                injected += '<div>Thank you for your business!</div>';
+                injected += '<div style="margin-top:6px">This is a computer-generated invoice. For questions, contact ' + ((data.business && data.business.email) ? data.business.email : '') + '</div>';
+                injected += '</div>';
+                if (/<\/body>/i.test(html)) {
+                    html = html.replace(/<\/body>/i, injected + '</body>');
+                } else if (/<\/html>/i.test(html)) {
+                    html = html.replace(/<\/html>/i, '<body>' + injected + '</body></html>');
+                } else {
+                    html = html + injected;
+                }
+            }
             // sandbox the preview iframe to prevent it from opening new tabs/windows
             // allow-scripts so preview JS still runs; DO NOT allow-same-origin or allow-popups
             iframe.sandbox = 'allow-scripts';
@@ -1442,15 +1341,22 @@
         addOrReplaceFloatingDownload(body, async function() {
             await modalDownloadHandler();
         });
-        // try background PDF download (if server can return PDF) so user can get PDF immediately
-        (async () => {
-            try {
-                const ok = await downloadPdfFromData(data);
-                if (ok) console.log('Background PDF downloaded');
-            } catch (e) {
-                console.warn('Background PDF attempt failed', e);
+        // show payment terms / notes for HTML previews as well
+        try {
+            if (data && (data.payment_terms || data.notes)) {
+                const meta = document.createElement('div');
+                meta.style.marginTop = '8px'; meta.style.fontSize = '13px'; meta.style.color = '#333';
+                if (data.payment_terms) {
+                    const p = document.createElement('div'); p.innerHTML = '<strong>Payment Terms:</strong> ' + (data.payment_terms || ''); meta.appendChild(p);
+                }
+                if (data.notes) {
+                    const n = document.createElement('div'); n.style.marginTop = '6px'; n.innerHTML = '<strong>Notes:</strong> ' + (data.notes || ''); meta.appendChild(n);
+                }
+                body.appendChild(meta);
             }
-        })();
+        } catch(e) { console.warn('adding payment terms/notes to HTML preview failed', e); }
+        // try background PDF download (if server can return PDF) so user can get PDF immediately
+        // Background PDF generation removed; only show preview modal.
         const modalEl = document.getElementById('invoice-preview-modal');
         if (window.bootstrap && modalEl) {
             console.log('showPreviewModalWithHtml: showing bootstrap modal');
@@ -1477,113 +1383,18 @@
         }
     }
 
-    // Unified modal download handler: try XHR PDF download; if server returns HTML,
-    // open printable HTML in a new window so user can Save as PDF via print dialog.
+    // Modal download handler removed: downloads are not supported in UI.
     async function modalDownloadHandler() {
-        // Always attempt a fresh serialization/download first so updated photo/fields are used
-        // If this is an existing invoice (Edit), prefer the canonical PDF endpoint first
         try {
             const pk = window.INVOICE_PK || '';
-            if (pk) {
-                try {
-                    const url = `/invoices/${pk}/pdf/?format=pdf&backend=wkhtmltopdf&template=${encodeURIComponent(window.SELECTED_TEMPLATE||'1')}`;
-                    const r = await fetch(url, { credentials: 'same-origin' });
-                    if (r && r.ok) {
-                        const ct = (r.headers.get('Content-Type') || '').toLowerCase();
-                        if (ct.indexOf('pdf') !== -1) {
-                            const blob = await r.blob();
-                            const filename = (document.getElementById('id_invoice_number') && document.getElementById('id_invoice_number').value) || ('invoice-' + pk);
-                            const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement('a'); a.href = blobUrl; a.download = filename + '.pdf'; document.body.appendChild(a); a.click(); a.remove();
-                            setTimeout(()=>{ try{ URL.revokeObjectURL(blobUrl); }catch(e){} },1500);
-                            return;
-                        }
-                        // if non-pdf returned, fall through to preview download handling
-                    }
-                } catch (e) {
-                    console.warn('modalDownloadHandler: canonical PDF fetch failed', e);
-                }
-            }
-
+            if (pk) { window.open(`/invoices/${pk}/`, '_blank'); return; }
             const fresh = await serializePreviewData();
-            const okFresh = await downloadPdfFromData(fresh);
-            if (okFresh) return;
-        } catch (e) { console.warn('modalDownloadHandler: fresh download failed', e); }
-
-        // If we have a previously-cached blob URL for the preview, try to use it.
-        if (_lastPreviewData && _lastPreviewData.blobUrl) {
-            try {
-                const a = document.createElement('a');
-                a.href = _lastPreviewData.blobUrl;
-                a.download = _lastPreviewData.filename || 'invoice.pdf';
-                document.body.appendChild(a); a.click(); a.remove();
-                return;
-            } catch (err) {
-                // Some browsers may consider a revoked blob URL invalid; attempt to re-create
-                // a fresh object URL by fetching the original blob and creating a new URL.
-                console.warn('modalDownloadHandler: direct blob download failed, attempting to recreate blob URL', err);
-                try {
-                    const resp = await fetch(_lastPreviewData.blobUrl);
-                    if (resp && resp.ok) {
-                        const blob = await resp.blob();
-                        const newUrl = URL.createObjectURL(blob);
-                        try {
-                            const a2 = document.createElement('a');
-                            a2.href = newUrl; a2.download = _lastPreviewData.filename || 'invoice.pdf';
-                            document.body.appendChild(a2); a2.click(); a2.remove();
-                        } finally {
-                            // revoke the recreated URL shortly after to avoid leaking memory
-                            setTimeout(() => { try { URL.revokeObjectURL(newUrl); } catch(e){} }, 1500);
-                        }
-                        return;
-                    }
-                } catch (e2) {
-                    console.warn('modalDownloadHandler: recreating blob URL failed', e2);
-                }
-            }
-        }
-
-        if (_lastPreviewData) {
-            const ok = await downloadPdfFromData(_lastPreviewData);
-            if (ok) return;
-        }
-
-        if (_lastPreviewHtml) {
-            try {
-                // Instead of forcing a print dialog (which is intrusive), open the
-                // preview HTML in a new tab so the user can inspect and print/save
-                // manually. This avoids automatic print popups on the Create form.
-                const safeHtml = (_lastPreviewHtml || '').replace(/<script[\s\S]*?<\/script>/gi, '');
-                const printable = '<!doctype html><html><head><meta charset="utf-8"><title>Invoice Preview</title>' +
-                    '<style>html,body{height:100%;margin:0;padding:16px;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}</style></head><body>' + safeHtml + '</body></html>';
-                const newWin = window.open('', '_blank');
-                if (newWin) {
-                    try {
-                        newWin.document.open();
-                        newWin.document.write(printable);
-                        newWin.document.close();
-                        // Focus the new tab and let the user print/save via browser UI
-                        newWin.focus();
-                    } catch (e) {
-                        // Fallback to data URL if direct document write fails
-                        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(printable);
-                        window.open(dataUrl, '_blank');
-                    }
-                    return;
-                } else {
-                    // If popup blocked, fall back to alert with instructions
-                    alert('Preview opened was blocked by the browser. Please enable popups for this site to view and print the preview.');
-                    return;
-                }
-            } catch (e) {
-                console.warn('Failed to open preview tab', e);
-            }
-        }
-        alert('No PDF available. Try saving or printing the preview.');
+            try { await livePdfPreview(fresh); } catch(e){ console.warn('modalDownloadHandler: livePdfPreview failed', e); }
+        } catch (e) { console.warn('modalDownloadHandler: failed', e); }
     }
 
     // cleanup blob URL and floating button when modal hidden
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         const modalEl = document.getElementById('invoice-preview-modal');
         if (!modalEl) return;
         modalEl.addEventListener('hidden.bs.modal', function() {
@@ -1599,27 +1410,92 @@
         });
     });
 
-    // wire modal download button
-    document.addEventListener('DOMContentLoaded', function() {
+    // hide modal download and floating download buttons (download removed)
+    document.addEventListener('DOMContentLoaded', async function() {
         const modalDl = document.getElementById('modal-download-btn');
-        if (modalDl) modalDl.addEventListener('click', async function() {
-            // If we are creating a new invoice, offer Save & Download from the modal
+        if (modalDl) modalDl.style.display = 'none';
+        const floatBtn = document.getElementById('preview-floating-download'); if (floatBtn) floatBtn.style.display = 'none';
+        const floatBtn2 = document.getElementById('preview-floating-download-float'); if (floatBtn2) floatBtn2.style.display = 'none';
+        // wire create-page Download PDF button
+        const createDl = document.getElementById('create-download-pdf-btn');
+        if (createDl) createDl.addEventListener('click', async function() {
             try {
-                if ((window.PAGE_ACTION || '').toLowerCase() === 'create') {
-                    // Attempt to save via AJAX and download canonical PDF; submitFormAndOpenPdf
-                    // will render validation HTML in the modal if save fails.
-                    await submitFormAndOpenPdf();
+                createDl.disabled = true;
+                // If this is an Edit page with a saved invoice, use the server's generate endpoint
+                const pk = window.INVOICE_PK || '';
+                if (pk) {
+                    // Correct endpoint: invoices/<pk>/pdf/ (named 'generate_pdf' in urls)
+                    const resp = await fetch(`/invoices/${pk}/pdf/`, { credentials: 'same-origin' });
+                    if (!resp.ok) {
+                        const txt = await resp.text().catch(()=>null);
+                        if (txt) showPreviewModalWithHtml(txt, {});
+                        return;
+                    }
+                    const ct = (resp.headers.get('Content-Type') || '').toLowerCase();
+                    if (ct.indexOf('application/pdf') !== -1) {
+                        const blob = await resp.blob();
+                        const filename = (pk ? ('invoice-' + pk + '.pdf') : 'invoice.pdf');
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} },1500);
+                        return;
+                    } else {
+                        const txt = await resp.text();
+                        showPreviewModalWithHtml(txt, {});
+                        return;
+                    }
+                }
+
+                const data = await serializePreviewData();
+                const csrftoken = getCsrf();
+                const resp = await fetch('{% url "invoice_live_preview" %}?format=pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                        'Accept': 'application/pdf'
+                    },
+                    body: JSON.stringify(data),
+                    credentials: 'same-origin'
+                });
+                if (!resp.ok) {
+                    const ctype = (resp.headers.get('Content-Type') || '').toLowerCase();
+                    if (ctype.indexOf('application/json') !== -1) {
+                        const j = await resp.json().catch(()=>null);
+                        if (j && j.message) {
+                            showPdfBackendAlert(j.message);
+                            return;
+                        }
+                        const txt = await resp.text().catch(()=>null);
+                        showPreviewModalWithHtml(txt || JSON.stringify(j || {}), data);
+                        return;
+                    }
+                    const txt = await resp.text();
+                    showPreviewModalWithHtml(txt, data);
                     return;
                 }
+                const ct = (resp.headers.get('Content-Type') || '').toLowerCase();
+                if (ct.indexOf('application/pdf') !== -1) {
+                    const blob = await resp.blob();
+                    const filename = (data.invoice_number || 'invoice') + '.pdf';
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} },1500);
+                } else {
+                    const txt = await resp.text();
+                    showPreviewModalWithHtml(txt, data);
+                }
             } catch (e) {
-                console.warn('Save-and-download from modal failed, falling back to modal download', e);
+                console.warn('create-download failed', e);
+                alert('Download failed: ' + e);
+            } finally {
+                try { createDl.disabled = false; } catch(e){}
             }
-            await modalDownloadHandler();
         });
     });
 
     // wire delete-selected button
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         const delBtn = document.getElementById('delete-selected-btn');
         if (delBtn) delBtn.addEventListener('click', function() {
             if (!confirm('Delete selected items?')) return;
@@ -2065,29 +1941,26 @@
     }
 
     // listen for download requests from preview iframe (invoice_pdf.html)
-    window.addEventListener('message', function(e) {
+    window.addEventListener('message', async function(e) {
         try {
             const data = (typeof e.data === 'object') ? e.data : null;
             if (!data) return;
             if (data.action === 'downloadPreview' || data.action === 'downloadPreviewFromIframe') {
-                // If preview already exists, use unified modal download handler.
-                if (_lastPreviewData || _lastPreviewHtml) {
-                    modalDownloadHandler();
-                } else {
-                    // otherwise, serialize, render preview (to set _lastPreviewHtml), then trigger download/print
-                    serializePreviewData().then(async d => {
-                        try {
-                            await livePdfPreview(d);
-                        } catch (e) {}
-                        try { await modalDownloadHandler(); } catch(e){}
-                    }).catch(()=>{});
-                }
+                // Download requests from iframe now open the preview instead (no PDF downloads).
+                try {
+                    if (_lastPreviewData) {
+                        await livePdfPreview(_lastPreviewData);
+                    } else {
+                        const d = await serializePreviewData();
+                        await livePdfPreview(d);
+                    }
+                } catch (err) { console.warn('iframe preview request failed', err); }
             }
         } catch (err) {}
     });
 
 // Ensure Invoice Number updates the live preview in real time
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     const invInput = document.getElementById('id_invoice_number');
     const dateInput = document.getElementById('id_invoice_date');
     const dueInput = document.getElementById('id_due_date');
@@ -2126,71 +1999,22 @@ document.addEventListener('DOMContentLoaded', function() {
     refreshAllPreviewFields();
 });
 
-// Wire template dropdown and buttons to update the live preview immediately
-document.addEventListener('DOMContentLoaded', function() {
-    // dropdown items inside the new Templates button
-    document.querySelectorAll('.template-dropdown-item').forEach(function(a){
-        a.addEventListener('click', function(e){
-            e.preventDefault();
-            var tpl = this.dataset.template;
-            if (!tpl) return;
-            window.SELECTED_TEMPLATE = tpl;
-            // update inline template button visual state
-            document.querySelectorAll('.template-btn').forEach(function(b){
-                try{
-                    if (b.dataset.template === tpl) {
-                        b.classList.remove('btn-outline-secondary'); b.classList.add('btn-outline-primary');
-                    } else {
-                        b.classList.remove('btn-outline-primary'); b.classList.add('btn-outline-secondary');
-                    }
-                }catch(e){}
-            });
-            // attempt to close bootstrap dropdown if available
-            try {
-                var dropdownMenu = this.closest('.dropdown-menu');
-                if (dropdownMenu && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                    var toggle = dropdownMenu.previousElementSibling;
-                    if (toggle) {
-                        var inst = bootstrap.Dropdown.getInstance(toggle);
-                        if (inst && inst.hide) inst.hide();
-                    }
-                }
-            } catch(e){}
-            try { updateSidebarPreview(); } catch(e) { console.warn('updateSidebarPreview failed', e); }
-        });
-    });
-
-    // ensure direct template buttons also set selected template and update preview
-    document.querySelectorAll('.template-btn').forEach(function(b){
-        b.addEventListener('click', function(){
-            var tpl = this.dataset.template;
-            if (!tpl) return;
-            window.SELECTED_TEMPLATE = tpl;
-            document.querySelectorAll('.template-btn').forEach(function(bb){
-                if (bb === b) { bb.classList.remove('btn-outline-secondary'); bb.classList.add('btn-outline-primary'); }
-                else { bb.classList.remove('btn-outline-primary'); bb.classList.add('btn-outline-secondary'); }
-            });
-            try { updateSidebarPreview(); } catch(e) {}
-        });
-    });
-    // Wire the quick Templates button to show its dropdown (Bootstrap) and reuse items
+// Wire sidebar Save button to trigger the hidden submit inside the form
+document.addEventListener('DOMContentLoaded', function(){
     try {
-        const quickBtn = document.getElementById('quick-templates-btn');
-        const quickMenu = document.getElementById('quick-templates-dropdown');
-        if (quickBtn && quickMenu) {
-            // hook up Bootstrap dropdown if available
-            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                const inst = new bootstrap.Dropdown(quickBtn, {autoClose:true});
-                // move the dropdown menu into the DOM near the button for proper positioning
-                quickBtn.parentNode.appendChild(quickMenu);
-            }
-            // clicking the quick button toggles visibility when no Bootstrap JS
-            quickBtn.addEventListener('click', function(e){
-                // if Bootstrap handled it, let it; otherwise toggle class
-                if (!window.bootstrap) quickMenu.classList.toggle('show');
+        const sideSave = document.getElementById('sidebar-save-btn');
+        const hidden = document.getElementById('hidden-submit-btn');
+        if (sideSave && hidden) {
+            sideSave.addEventListener('click', function(e){
+                try { hidden.click(); } catch(err){
+                    // fallback: submit form directly
+                    const f = document.getElementById('invoice-form'); if (f) f.submit();
+                }
             });
         }
-    } catch(e) { console.warn('quick templates wiring failed', e); }
+    } catch(e) { console.warn('sidebar save wiring failed', e); }
 });
+
+// Template selection logic removed per request
 </script>
 {% endblock %}

@@ -36,8 +36,8 @@ Optional (recommended for persistent uploads)
 - `AWS_STORAGE_BUCKET_NAME` — S3 bucket.
 - `AWS_S3_REGION_NAME` — optional.
 - `AWS_S3_ENDPOINT_URL` — optional (for S3-compatible providers).
-- `WKHTMLTOPDF_CMD` — optional path to wkhtmltopdf if using wkhtmltopdf instead of WeasyPrint.
-- `PDF_BACKEND` — defaults to `weasyprint`.
+- `WKHTMLTOPDF_CMD` — optional path to wkhtmltopdf if using wkhtmltopdf instead of ReportLab.
+- `PDF_BACKEND` — defaults to `reportlab`.
 
 Notes on static files and media
 
@@ -47,18 +47,18 @@ Notes on static files and media
 
 PDF generation
 
-- WeasyPrint is included in `requirements.txt` but requires system libraries (cairo, pango, libffi, etc.). The provided `Dockerfile` installs the required system packages and is therefore the recommended deployment to ensure PDF generation works.
+- ReportLab is included in `requirements.txt`. If you prefer an HTML-to-PDF renderer (wkhtmltopdf), set `WKHTMLTOPDF_CMD` and ensure the binary is available in the environment.
 - If you deploy without Docker, you must ensure those system packages are available in the runtime environment.
 
 One-click (button) configuration
 
-- If you want a GitHub one-click deploy button, create a Railway template and point it to this repository. Ensure the Railway template uses the Docker deployment option to guarantee all system dependencies for WeasyPrint are available.
+- If you want a GitHub one-click deploy button, create a Railway template and point it to this repository. Ensure the Railway template uses the Docker deployment option for a consistent runtime environment.
 
 Post-deploy checklist (what to verify)
 
 - Application boots and responds on `/` and `/dashboard/`.
 - Create a user and create an invoice.
-- Generate/download PDF from an invoice to confirm WeasyPrint works.
+- Generate/download PDF from an invoice to confirm ReportLab works.
 - Verify data persists after redeploy (Postgres should persist automatically).
 - If you are relying on filesystem media, verify uploads remain after a redeploy or configure S3/persistent volume.
 

@@ -147,12 +147,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
-# Make wkhtmltopdf path configurable via env; default unset so WeasyPrint is used.
+# Make wkhtmltopdf path configurable via env; leave unset unless using wkhtmltopdf.
 WKHTMLTOPDF_CMD = os.getenv('WKHTMLTOPDF_CMD', '')
 
-# PDF backend: default to WeasyPrint (recommended). If you need wkhtmltopdf,
-# set `WKHTMLTOPDF_CMD` in the environment to the executable path.
-PDF_BACKEND = os.getenv('PDF_BACKEND', 'weasyprint')
+# PDF backend: default to ReportLab (pure-Python). Set `WKHTMLTOPDF_CMD` if
+# you prefer wkhtmltopdf as an alternative backend.
+PDF_BACKEND = os.getenv('PDF_BACKEND', 'reportlab')
 
 # Optional: Use S3 (or S3-compatible) storage for user-uploaded media. Railway
 # application filesystems can be ephemeral; enabling S3 keeps uploads persistent.
