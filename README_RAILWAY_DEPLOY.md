@@ -9,7 +9,7 @@ Key changes made
 
 - `Procfile` updated to run `./entrypoint.sh` before starting Gunicorn so migrations and `collectstatic` run automatically on release/start.
 - `entrypoint.sh` waits for Postgres if `DATABASE_URL` points to Postgres, runs `makemigrations`/`migrate`, and runs `collectstatic`.
-- `config/settings.py` updated to read `DATABASE_URL` via `dj-database-url`, enable optional S3-backed media (via `django-storages`), and use environment variables for PDF backend and wkhtmltopdf path.
+- `config/settings.py` updated to read `DATABASE_URL` via `dj-database-url`, enable optional S3-backed media (via `django-storages`), and use environment variables for selecting the PDF backend when necessary.
 - `requirements.txt` includes `django-storages[boto3]` and `boto3` for optional S3 support.
 - `Dockerfile` updated so Gunicorn binds to Railway's `$PORT` when available.
 
@@ -36,8 +36,7 @@ Optional (recommended for persistent uploads)
 - `AWS_STORAGE_BUCKET_NAME` — S3 bucket.
 - `AWS_S3_REGION_NAME` — optional.
 - `AWS_S3_ENDPOINT_URL` — optional (for S3-compatible providers).
-- `WKHTMLTOPDF_CMD` — optional path to wkhtmltopdf if using wkhtmltopdf instead of ReportLab.
-- `PDF_BACKEND` — defaults to `reportlab`.
+- `PDF_BACKEND` — defaults to `reportlab`. If you prefer `wkhtmltopdf`, set `WKHTMLTOPDF_CMD` and ensure the binary is installed in your runtime image; note the Dockerfile does not install wkhtmltopdf by default.
 
 Notes on static files and media
 

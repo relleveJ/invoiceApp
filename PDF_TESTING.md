@@ -4,7 +4,7 @@ This file contains quick steps to verify the PDF endpoints locally and notes for
 
 Local verification (recommended prerequisites)
 - Docker installed (preferred), or
-- Install `wkhtmltopdf` on the host and run the Django dev server.
+- Optional: install `wkhtmltopdf` on the host if you need HTML-to-PDF rendering; otherwise ReportLab (default) is sufficient.
 
 Quick: build & run with Docker
 
@@ -69,7 +69,7 @@ docker push <hub-user>/invoiceapp:latest
 - `DATABASE_URL` (Postgres or Railway-provided DB)
 - `PORT` = `8000`
 
-The Dockerfile already installs `wkhtmltopdf` and sets `WKHTMLTOPDF_CMD=/usr/bin/wkhtmltopdf`, which provides a reliable PDF backend in the container. ReportLab is included as a Python dependency and does not require native GLib/Pango/Cairo libraries.
+The Dockerfile does not install `wkhtmltopdf` by default; this project uses ReportLab for PDF generation (ReportLab is included in `requirements.txt` and does not require native GLib/Pango/Cairo libraries). If you prefer `wkhtmltopdf`, install a prebuilt binary into the image or set `WKHTMLTOPDF_CMD` in the environment and ensure the binary is present in the runtime.
 
 After deployment, use the same `scripts/test_pdf_endpoints.ps1` or curl commands against the Railway-provided URL to verify PDF generation.
 
