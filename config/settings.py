@@ -167,3 +167,9 @@ if USE_S3:
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL') or None
     AWS_QUERYSTRING_AUTH = False
     AWS_DEFAULT_ACL = os.getenv('AWS_DEFAULT_ACL', 'private')
+
+# Allow optionally serving MEDIA files from Django in non-debug environments.
+# This is intended as a temporary/debugging toggle for environments where a
+# proper media host (S3 or a persistent volume + webserver) isn't configured.
+# Set `SERVE_MEDIA=true` in the environment to enable.
+SERVE_MEDIA = os.getenv('SERVE_MEDIA', 'False') in ('True', 'true', '1')

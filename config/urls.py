@@ -43,6 +43,7 @@ urlpatterns = [
     path('invoices/<int:pk>/confirmation/', views.invoice_confirmation, name='invoice_confirmation'),
     path('invoices/<int:pk>/pdf/', views.generate_pdf, name='generate_pdf'),
     path('pdf-status/', views.pdf_status, name='pdf_status'),
+    path('debug/media-check/', views.media_check, name='media_check'),
     path('invoices/<int:pk>/email/', views.email_invoice, name='email_invoice'),
     path('invoices/preview/', views.invoice_live_preview, name='invoice_live_preview'),
     path('invoices/<int:pk>/preview-html/', views.invoice_live_preview, name='invoice_preview_html'),
@@ -72,6 +73,9 @@ urlpatterns = [
     path('api/exchange-rate/', views.exchange_rate, name='exchange_rate'),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG or getattr(settings, 'SERVE_MEDIA', False):
+    # In production it's recommended to serve media via S3 or a web server.
+    # `SERVE_MEDIA` can be enabled temporarily (set SERVE_MEDIA=true) to have
+    # Django serve uploaded media files from `MEDIA_ROOT` (useful for debugging).
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

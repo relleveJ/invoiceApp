@@ -19,6 +19,9 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from zoneinfo import ZoneInfo
+from django.core.files.storage import default_storage
+from django.views.decorators.http import require_GET
+from django.contrib.admin.views.decorators import staff_member_required
 import datetime
 import shutil
 import subprocess
@@ -3263,6 +3266,29 @@ def pdf_status(request):
 		status['wkhtmltopdf']['error'] = str(e)
 
 	return JsonResponse(status)
+
+
+@staff_member_required
+@require_GET
+def media_check(request):
+	"""Debug endpoint (staff-only) that checks whether a media file exists in
+	the configured storage and returns the storage URL. Use query param `path`.
+
+	Example: /debug/media-check/?path=business_logos/trademark-logo-design-template-0c168d6b13d4daaaa909244baee9dd99_screen.jpg
+	"""
+	path = request.GET.get('path')
+	if not path:
+		return JsonResponse({'error': 'missing required query param `path`'}, status=400)
+	try:
+		exists = default_storage.exists(path)
+	except Exception as e:
+		return JsonResponse({'path': path, 'exists': False, 'error': str(e)}, status=500)
+	url = None
+	try:
+		url = default_storage.url(path)
+	except Exception:
+		url = None
+	return JsonResponse({'path': path, 'exists': exists, 'url': url})
 
 
 def _ensure_ad_click_table():
