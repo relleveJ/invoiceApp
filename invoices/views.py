@@ -1563,15 +1563,18 @@ def invoice_live_preview(request, pk=None):
 		try:
 			from types import SimpleNamespace as _SN
 			# If invoice has snapshot fields or a stored logo, prefer that
-			if getattr(invoice, 'business_name', None) or getattr(invoice, 'business_logo', None):
+			if getattr(invoice, 'business_name', None) or getattr(invoice, 'business_logo', None) or getattr(invoice, 'business_logo_blob', None):
 				biz_logo = None
 				try:
-					if getattr(invoice, 'business_logo', None):
+					# Prefer DB-stored blob for the invoice if present
+					if getattr(invoice, 'business_logo_blob', None):
+						u = request.build_absolute_uri(reverse('db_image', args=['invoice', invoice.pk]))
+						biz_logo = _SN(url=u)
+					elif getattr(invoice, 'business_logo', None):
 						u = invoice.business_logo.url
 						if u and not u.startswith('http') and not u.startswith('data:'):
 							u = request.build_absolute_uri(u)
 						biz_logo = _SN(url=u)
-					
 				except Exception:
 					biz_logo = None
 				business = _SN(
@@ -1586,10 +1589,15 @@ def invoice_live_preview(request, pk=None):
 				bp = get_businesses_for_user(request.user).first()
 				if bp:
 					try:
-						u = bp.logo.url if getattr(bp, 'logo', None) else None
-						if u and not u.startswith('http') and not u.startswith('data:'):
-							u = request.build_absolute_uri(u)
-						biz_logo = _SN(url=u) if u else None
+						# Prefer DB-stored blob on the BusinessProfile if present
+						if getattr(bp, 'logo_blob', None):
+							u = request.build_absolute_uri(reverse('db_image', args=['business', bp.pk]))
+							biz_logo = _SN(url=u)
+						else:
+							u = bp.logo.url if getattr(bp, 'logo', None) else None
+							if u and not u.startswith('http') and not u.startswith('data:'):
+								u = request.build_absolute_uri(u)
+							biz_logo = _SN(url=u) if u else None
 					except Exception:
 						biz_logo = None
 					business = _SN(
@@ -2183,10 +2191,13 @@ def invoice_detail(request, pk):
 	from types import SimpleNamespace
 	business = None
 	try:
-		if getattr(invoice, 'business_name', None) or getattr(invoice, 'business_logo', None):
+		if getattr(invoice, 'business_name', None) or getattr(invoice, 'business_logo', None) or getattr(invoice, 'business_logo_blob', None):
 			biz_logo = None
 			try:
-				if invoice.business_logo:
+				if getattr(invoice, 'business_logo_blob', None):
+					u = request.build_absolute_uri(reverse('db_image', args=['invoice', invoice.pk]))
+					biz_logo = SimpleNamespace(url=u)
+				elif invoice.business_logo:
 					u = invoice.business_logo.url
 					if u and not u.startswith('http') and not u.startswith('data:'):
 						u = request.build_absolute_uri(u)
@@ -2204,10 +2215,14 @@ def invoice_detail(request, pk):
 			bp = get_businesses_for_user(request.user).first()
 			if bp:
 				try:
-					u = bp.logo.url if getattr(bp, 'logo', None) else None
-					if u and not u.startswith('http') and not u.startswith('data:'):
-						u = request.build_absolute_uri(u)
-					biz_logo = SimpleNamespace(url=u) if u else None
+					if getattr(bp, 'logo_blob', None):
+						u = request.build_absolute_uri(reverse('db_image', args=['business', bp.pk]))
+						biz_logo = SimpleNamespace(url=u)
+					else:
+						u = bp.logo.url if getattr(bp, 'logo', None) else None
+						if u and not u.startswith('http') and not u.startswith('data:'):
+							u = request.build_absolute_uri(u)
+						biz_logo = SimpleNamespace(url=u) if u else None
 				except Exception:
 					biz_logo = None
 				business = SimpleNamespace(
@@ -2822,7 +2837,13 @@ def invoice_edit(request, pk):
 		business_initial['email'] = invoice.business_email or ''
 		business_initial['phone'] = invoice.business_phone or ''
 		business_initial['address'] = invoice.business_address or ''
-		if invoice.business_logo:
+		# Prefer DB-stored blob if available
+		if getattr(invoice, 'business_logo_blob', None):
+			try:
+				business_initial['logo_url'] = request.build_absolute_uri(reverse('db_image', args=['invoice', invoice.pk]))
+			except Exception:
+				business_initial['logo_url'] = ''
+		elif invoice.business_logo:
 			try:
 				u = invoice.business_logo.url
 				if u and not u.startswith('http') and not u.startswith('data:'):
@@ -2830,19 +2851,24 @@ def invoice_edit(request, pk):
 				business_initial['logo_url'] = u
 			except Exception:
 				business_initial['logo_url'] = ''
-			# try to resolve a matching BusinessProfile so the select can default to it
-			if business_initial['name']:
-				bp = get_businesses_for_user(request.user).filter(business_name=business_initial['name']).first()
-			if bp:
-				business_initial['id'] = bp.pk
-				if bp.logo:
-					try:
-						u = bp.logo.url
-						if u and not u.startswith('http') and not u.startswith('data:'):
-							u = request.build_absolute_uri(u)
-						business_initial['logo_url'] = u
-					except Exception:
-						pass
+		# try to resolve a matching BusinessProfile so the select can default to it
+		if business_initial['name']:
+			bp = get_businesses_for_user(request.user).filter(business_name=business_initial['name']).first()
+		if bp:
+			business_initial['id'] = bp.pk
+			if getattr(bp, 'logo_blob', None):
+				try:
+					business_initial['logo_url'] = request.build_absolute_uri(reverse('db_image', args=['business', bp.pk]))
+				except Exception:
+					pass
+			elif bp.logo:
+				try:
+					u = bp.logo.url
+					if u and not u.startswith('http') and not u.startswith('data:'):
+						u = request.build_absolute_uri(u)
+					business_initial['logo_url'] = u
+				except Exception:
+					pass
 
 	try:
 		templates_qs = list(InvoiceTemplate.objects.all().order_by('-is_default', 'created_date'))
@@ -2972,7 +2998,10 @@ def generate_pdf(request, pk):
 		elif getattr(invoice, 'business_name', None) or getattr(invoice, 'business_logo', None):
 			biz_logo = None
 			try:
-				if invoice.business_logo:
+				if getattr(invoice, 'business_logo_blob', None):
+					u = request.build_absolute_uri(reverse('db_image', args=['invoice', invoice.pk]))
+					biz_logo = SimpleNamespace(url=u)
+				elif invoice.business_logo:
 					u = invoice.business_logo.url
 					if u and not u.startswith('http') and not u.startswith('data:'):
 						u = request.build_absolute_uri(u)
@@ -2990,10 +3019,14 @@ def generate_pdf(request, pk):
 			bp = get_businesses_for_user(request.user).first()
 			if bp:
 				try:
-					u = bp.logo.url if getattr(bp, 'logo', None) else None
-					if u and not u.startswith('http') and not u.startswith('data:'):
-						u = request.build_absolute_uri(u)
-					biz_logo = SimpleNamespace(url=u) if u else None
+					if getattr(bp, 'logo_blob', None):
+						u = request.build_absolute_uri(reverse('db_image', args=['business', bp.pk]))
+						biz_logo = SimpleNamespace(url=u)
+					else:
+						u = bp.logo.url if getattr(bp, 'logo', None) else None
+						if u and not u.startswith('http') and not u.startswith('data:'):
+							u = request.build_absolute_uri(u)
+						biz_logo = SimpleNamespace(url=u) if u else None
 				except Exception:
 					biz_logo = None
 				business = SimpleNamespace(
@@ -3343,7 +3376,6 @@ def media_check(request):
 	return JsonResponse({'path': path, 'exists': exists, 'url': url})
 
 
-@staff_member_required
 @require_GET
 def db_image(request, kind, pk):
 	"""Serve images stored in Postgres binary fields.
