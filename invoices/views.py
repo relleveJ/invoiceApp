@@ -2014,11 +2014,16 @@ def invoice_create(request):
 										# Build a distinct destination name to avoid collisions
 										base = os.path.basename(src.name)
 										stamp = int(timezone.now().timestamp())
-										dest_name = f"invoice_logos/{invoice.invoice_number or invoice.pk}_{stamp}_{base}"
-										# Read source file from its storage and save through default_storage
+										# Use invoice_number if present, otherwise a uuid fallback
+										ident = (invoice.invoice_number or str(invoice.pk) or str(uuid.uuid4()))
+										dest_name = f"invoice_logos/{ident}_{stamp}_{base}"
+										# Open source via its storage backend and save through default_storage
 										try:
-											with src.open('rb') as fh:
-												saved_name = default_storage.save(dest_name, fh)
+											from django.core.files import File as DjangoFile
+											storage = src.storage if getattr(src, 'storage', None) else default_storage
+											with storage.open(src.name, 'rb') as fh:
+												django_file = DjangoFile(fh, name=base)
+												saved_name = default_storage.save(dest_name, django_file)
 											invoice.business_logo.name = saved_name
 										except Exception:
 											# Fall back to referencing the same file object if copy fails
@@ -2732,7 +2737,24 @@ def invoice_edit(request, pk):
 				try:
 					if 'bp' in locals() and bp and getattr(bp, 'logo', None) and not getattr(invoice, 'business_logo', None):
 						try:
-							invoice.business_logo.name = bp.logo.name
+							# Copy business profile logo into invoice storage to ensure persistence
+							src = bp.logo
+							if getattr(src, 'name', None):
+								base = os.path.basename(src.name)
+								stamp = int(timezone.now().timestamp())
+								ident = (invoice.invoice_number or str(invoice.pk) or str(uuid.uuid4()))
+								dest_name = f"invoice_logos/{ident}_{stamp}_{base}"
+								try:
+									from django.core.files import File as DjangoFile
+									storage = src.storage if getattr(src, 'storage', None) else default_storage
+									with storage.open(src.name, 'rb') as fh:
+										django_file = DjangoFile(fh, name=base)
+										saved_name = default_storage.save(dest_name, django_file)
+									invoice.business_logo.name = saved_name
+								except Exception:
+									invoice.business_logo = bp.logo
+							else:
+								invoice.business_logo = bp.logo
 						except Exception:
 							invoice.business_logo = bp.logo
 				except Exception:
