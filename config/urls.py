@@ -3,6 +3,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from invoices import views
+from django.urls import re_path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -71,6 +72,8 @@ urlpatterns = [
     # Backwards-compatible endpoint used by client-side code
     path('track-ad-click/', views.track_ad_click, name='track_ad_click_legacy'),
     path('api/exchange-rate/', views.exchange_rate, name='exchange_rate'),
+    # DB-served images (Postgres blobs)
+    path('media/db-image/<str:kind>/<int:pk>/', views.db_image, name='db_image'),
 ]
 
 if settings.DEBUG or getattr(settings, 'SERVE_MEDIA', False):

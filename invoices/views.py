@@ -20,6 +20,9 @@ from django.urls import reverse
 from django.utils import timezone
 from zoneinfo import ZoneInfo
 from django.core.files.storage import default_storage
+import mimetypes
+from django.http import HttpResponse
+from django.utils.encoding import smart_str
 from django.views.decorators.http import require_GET
 from django.contrib.admin.views.decorators import staff_member_required
 import datetime
@@ -636,6 +639,31 @@ def business_profile_setup(request):
 				if not getattr(bp, 'user', None):
 					bp.user = request.user
 			bp.save()
+			# If a logo file was provided, store its bytes and mime into the DB blob fields
+			try:
+				logo_file = None
+				if 'logo' in request.FILES:
+					logo_file = request.FILES.get('logo')
+				elif getattr(bp, 'logo', None) and getattr(bp.logo, 'name', None):
+					# read from storage
+					storage = bp.logo.storage if getattr(bp.logo, 'storage', None) else default_storage
+					with storage.open(bp.logo.name, 'rb') as fh:
+						logo_file = fh.read()
+				if logo_file:
+					from django.core.files.uploadedfile import InMemoryUploadedFile
+					if isinstance(logo_file, InMemoryUploadedFile):
+						# Uploaded file object
+						data = logo_file.read()
+						mime = getattr(logo_file, 'content_type', '') or mimetypes.guess_type(getattr(logo_file, 'name', ''))[0] or ''
+					else:
+						# raw bytes read from storage
+						data = logo_file if isinstance(logo_file, (bytes, bytearray)) else logo_file.read()
+						mime = mimetypes.guess_type(getattr(bp.logo, 'name', ''))[0] or ''
+					bp.logo_blob = data
+					bp.logo_mime = mime or ''
+					bp.save(update_fields=['logo_blob', 'logo_mime'])
+			except Exception:
+				logging.exception('failed to save business profile logo to blob')
 			messages.success(request, 'Business profile saved.')
 			return redirect('business_profile_setup')
 		else:
@@ -647,7 +675,10 @@ def business_profile_setup(request):
 	# If editing an existing BusinessProfile, provide an absolute logo URL to the template
 	business_logo_url = ''
 	try:
-		if instance and getattr(instance, 'logo', None) and getattr(instance.logo, 'url', None):
+		# Prefer DB-served blob URL if logo bytes are stored in DB
+		if instance and getattr(instance, 'logo_blob', None):
+			business_logo_url = request.build_absolute_uri(reverse('db_image', args=['business', instance.pk]))
+		elif instance and getattr(instance, 'logo', None) and getattr(instance.logo, 'url', None):
 			business_logo_url = request.build_absolute_uri(instance.logo.url)
 	except Exception:
 		business_logo_url = ''
@@ -2002,35 +2033,34 @@ def invoice_create(request):
 							invoice.business_phone = bp_obj.phone or invoice.business_phone
 						if not invoice.business_address:
 							invoice.business_address = bp_obj.address or invoice.business_address
-						# If the BusinessProfile has a logo and the invoice doesn't, reference it on the invoice
+						# If the BusinessProfile has a logo and the invoice doesn't, copy it into the invoice
 						try:
 							if getattr(bp_obj, 'logo', None) and not getattr(invoice, 'business_logo', None):
-								# Copy the BusinessProfile logo into the configured storage for this invoice.
-								# This avoids referencing a transient/local path and ensures the
-								# invoice's logo is persisted when running on Railway (S3 or other storage).
-								try:
-									src = bp_obj.logo
-									if getattr(src, 'name', None):
-										# Build a distinct destination name to avoid collisions
-										base = os.path.basename(src.name)
-										stamp = int(timezone.now().timestamp())
-										# Use invoice_number if present, otherwise a uuid fallback
-										ident = (invoice.invoice_number or str(invoice.pk) or str(uuid.uuid4()))
-										dest_name = f"invoice_logos/{ident}_{stamp}_{base}"
-										# Open source via its storage backend and save through default_storage
-										try:
-											from django.core.files import File as DjangoFile
-											storage = src.storage if getattr(src, 'storage', None) else default_storage
-											with storage.open(src.name, 'rb') as fh:
-												django_file = DjangoFile(fh, name=base)
-												saved_name = default_storage.save(dest_name, django_file)
+								src = bp_obj.logo
+								# Try to save a copy via default_storage (keeps existing behavior)
+								if getattr(src, 'name', None):
+									base = os.path.basename(src.name)
+									stamp = int(timezone.now().timestamp())
+									dest_name = f"invoice_logos/{invoice.invoice_number or invoice.pk}_{stamp}_{base}"
+									try:
+										from django.core.files import File as DjangoFile
+										storage = src.storage if getattr(src, 'storage', None) else default_storage
+										with storage.open(src.name, 'rb') as fh:
+											django_file = DjangoFile(fh, name=base)
+											saved_name = default_storage.save(dest_name, django_file)
 											invoice.business_logo.name = saved_name
+										# Also persist bytes into invoice.business_logo_blob so we can serve from Postgres
+										try:
+											with storage.open(src.name, 'rb') as fh2:
+												data = fh2.read()
+												invoice.business_logo_blob = data
+											invoice.business_logo_mime = mimetypes.guess_type(base)[0] or ''
 										except Exception:
-											# Fall back to referencing the same file object if copy fails
-											invoice.business_logo = bp_obj.logo
-									else:
+											logging.exception('failed to copy logo bytes to invoice blob')
+									except Exception:
+										# Fall back to referencing the same file object if copy fails
 										invoice.business_logo = bp_obj.logo
-								except Exception:
+								else:
 									invoice.business_logo = bp_obj.logo
 						except Exception:
 							pass
@@ -2737,24 +2767,7 @@ def invoice_edit(request, pk):
 				try:
 					if 'bp' in locals() and bp and getattr(bp, 'logo', None) and not getattr(invoice, 'business_logo', None):
 						try:
-							# Copy business profile logo into invoice storage to ensure persistence
-							src = bp.logo
-							if getattr(src, 'name', None):
-								base = os.path.basename(src.name)
-								stamp = int(timezone.now().timestamp())
-								ident = (invoice.invoice_number or str(invoice.pk) or str(uuid.uuid4()))
-								dest_name = f"invoice_logos/{ident}_{stamp}_{base}"
-								try:
-									from django.core.files import File as DjangoFile
-									storage = src.storage if getattr(src, 'storage', None) else default_storage
-									with storage.open(src.name, 'rb') as fh:
-										django_file = DjangoFile(fh, name=base)
-										saved_name = default_storage.save(dest_name, django_file)
-									invoice.business_logo.name = saved_name
-								except Exception:
-									invoice.business_logo = bp.logo
-							else:
-								invoice.business_logo = bp.logo
+							invoice.business_logo.name = bp.logo.name
 						except Exception:
 							invoice.business_logo = bp.logo
 				except Exception:
@@ -3328,6 +3341,34 @@ def media_check(request):
 	except Exception:
 		url = None
 	return JsonResponse({'path': path, 'exists': exists, 'url': url})
+
+
+@staff_member_required
+@require_GET
+def db_image(request, kind, pk):
+	"""Serve images stored in Postgres binary fields.
+	kind: 'business' or 'invoice'
+	"""
+	try:
+		if kind == 'business':
+			obj = get_object_or_404(BusinessProfile, pk=pk)
+			blob = getattr(obj, 'logo_blob', None)
+			mime = getattr(obj, 'logo_mime', '')
+		elif kind == 'invoice':
+			obj = get_object_or_404(Invoice, pk=pk)
+			blob = getattr(obj, 'business_logo_blob', None)
+			mime = getattr(obj, 'business_logo_mime', '')
+		else:
+			return JsonResponse({'error': 'invalid kind'}, status=400)
+		if not blob:
+			return JsonResponse({'error': 'not found'}, status=404)
+		# Default mime
+		if not mime:
+			mime = 'application/octet-stream'
+		return HttpResponse(blob, content_type=mime)
+	except Exception as e:
+		logging.exception('db_image failed')
+		return JsonResponse({'error': str(e)}, status=500)
 
 
 def _ensure_ad_click_table():

@@ -55,7 +55,9 @@
             <td data-label="Select"><input type="checkbox" name="selected_ids" value="{{ invoice.pk }}" class="invoice-row-checkbox" /></td>
             <td data-label="Invoice">{{ invoice.invoice_number }}</td>
             <td data-label="Business">
-              {% if invoice.business_logo %}
+              {% if invoice.business_logo_blob %}
+                <img src="{% url 'db_image' 'invoice' invoice.pk %}" alt="{{ invoice.business_name }}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;margin-right:8px;vertical-align:middle;" />
+              {% elif invoice.business_logo %}
                 <img src="{{ invoice.business_logo.url }}" alt="{{ invoice.business_name }}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;margin-right:8px;vertical-align:middle;" />
               {% endif %}
               <div style="display:inline-block;vertical-align:middle;">

@@ -10,6 +10,10 @@ class BusinessProfile(models.Model):
 	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 	business_name = models.CharField(max_length=200)
 	logo = models.ImageField(upload_to='logos/', null=True, blank=True)
+	# Optional binary storage for logo image data stored directly in Postgres
+	# Use this when you want to persist images inside the DB (Railway Postgres)
+	logo_blob = models.BinaryField(null=True, blank=True)
+	logo_mime = models.CharField(max_length=100, blank=True)
 	address = models.TextField(blank=True)
 	city = models.CharField(max_length=100, blank=True)
 	state = models.CharField(max_length=100, blank=True)
@@ -75,6 +79,9 @@ class Invoice(models.Model):
 	business_phone = models.CharField(max_length=50, blank=True)
 	business_address = models.TextField(blank=True)
 	business_logo = models.ImageField(upload_to='invoice_logos/', null=True, blank=True)
+	# Optional binary storage for invoice-level logo (persist in DB)
+	business_logo_blob = models.BinaryField(null=True, blank=True)
+	business_logo_mime = models.CharField(max_length=100, blank=True)
 
 	invoice_number = models.CharField(max_length=50, unique=True)
 	invoice_date = models.DateField()
