@@ -1476,7 +1476,16 @@ def invoice_trash_view(request, trash_pk):
 	if t.business_logo_name:
 		try:
 			from types import SimpleNamespace as SN
-			business = SN(business_name=t.business_name, email=t.business_email, phone=t.business_phone, address=t.business_address, logo=SN(url=request.build_absolute_uri('/media/' + t.business_logo_name)))
+			# Only expose a /media/ URL for the archived logo if the file exists
+			try:
+				exists = default_storage.exists(t.business_logo_name)
+			except Exception:
+				exists = False
+			if exists:
+				logo_url = request.build_absolute_uri('/media/' + t.business_logo_name)
+				business = SN(business_name=t.business_name, email=t.business_email, phone=t.business_phone, address=t.business_address, logo=SN(url=logo_url))
+			else:
+				business = SN(business_name=t.business_name, email=t.business_email, phone=t.business_phone, address=t.business_address, logo=None)
 		except Exception:
 			business = None
 	return render(request, 'invoices/invoice_detail.html', {'invoice': invoice, 'business': business, 'back_to_trash': True})
@@ -2984,8 +2993,15 @@ def generate_pdf(request, pk):
 			biz_logo = None
 			try:
 				if trash_snapshot.business_logo_name:
-					u = request.build_absolute_uri('/media/' + trash_snapshot.business_logo_name)
-					biz_logo = SimpleNamespace(url=u)
+					try:
+						exists = default_storage.exists(trash_snapshot.business_logo_name)
+					except Exception:
+						exists = False
+					if exists:
+						u = request.build_absolute_uri('/media/' + trash_snapshot.business_logo_name)
+						biz_logo = SimpleNamespace(url=u)
+					else:
+						biz_logo = None
 			except Exception:
 				biz_logo = None
 			business = SimpleNamespace(
