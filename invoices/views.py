@@ -2005,9 +2005,26 @@ def invoice_create(request):
 						# If the BusinessProfile has a logo and the invoice doesn't, reference it on the invoice
 						try:
 							if getattr(bp_obj, 'logo', None) and not getattr(invoice, 'business_logo', None):
-								# Assign the underlying storage name so the file is referenced for the invoice
+								# Copy the BusinessProfile logo into the configured storage for this invoice.
+								# This avoids referencing a transient/local path and ensures the
+								# invoice's logo is persisted when running on Railway (S3 or other storage).
 								try:
-									invoice.business_logo.name = bp_obj.logo.name
+									src = bp_obj.logo
+									if getattr(src, 'name', None):
+										# Build a distinct destination name to avoid collisions
+										base = os.path.basename(src.name)
+										stamp = int(timezone.now().timestamp())
+										dest_name = f"invoice_logos/{invoice.invoice_number or invoice.pk}_{stamp}_{base}"
+										# Read source file from its storage and save through default_storage
+										try:
+											with src.open('rb') as fh:
+												saved_name = default_storage.save(dest_name, fh)
+											invoice.business_logo.name = saved_name
+										except Exception:
+											# Fall back to referencing the same file object if copy fails
+											invoice.business_logo = bp_obj.logo
+									else:
+										invoice.business_logo = bp_obj.logo
 								except Exception:
 									invoice.business_logo = bp_obj.logo
 						except Exception:
